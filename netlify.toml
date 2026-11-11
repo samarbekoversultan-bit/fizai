@@ -1,0 +1,22 @@
+# Конфигурация Netlify
+# Папка для публикации — текущая (в ней index.html).
+# Примечание: файл netlify/functions/chat.js может отдаваться как обычный
+# статический файл, но ключа внутри него нет — он задаётся переменной
+# окружения GROQ_API_KEY в настройках сайта, поэтому ничего секретного не утекает.
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# Версия Node для серверной функции (netlify/functions/chat.js)
+[build.environment]
+  NODE_VERSION = "18"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Старая ссылка на файл раньше переименования — чтобы не ломалась
+[[redirects]]
+  from = "/fizai_ai_physics_tutor.html"
+  to = "/"
+  status = 301
