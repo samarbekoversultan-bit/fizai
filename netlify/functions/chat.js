@@ -13,12 +13,17 @@ const https = require('https');
 const GROQ_API_KEY = String(process.env.GROQ_API_KEY || '').trim();
 
 // Модели, которые разрешено вызывать через этот прокси
-const ALLOWED_MODELS = ['openai/gpt-oss-20b', 'meta-llama/llama-4-scout-17b-16e-instruct'];
+const ALLOWED_MODELS = ['openai/gpt-oss-20b', 'qwen/qwen3.8-27b'];
 
 // Ограничения, чтобы сайтом не пользовались как бесплатным ИИ-прокси
 const MAX_MESSAGES = 20;
 const MAX_CONTENT = 8000;   // символов в одном сообщении
 const MAX_TOKENS = 65536;
+
+// У vision-модели свой потолок генерации — больше Groq возвращает ошибку
+const MODEL_MAX_TOKENS = {
+    'qwen/qwen3.8-27b': 16384
+};
 
 const GROQ_HOST = 'api.groq.com';
 const GROQ_PATH = '/openai/v1/chat/completions';
@@ -147,7 +152,9 @@ exports.handler = async function (event) {
     }
 
     const requested = parseInt(payload.max_tokens, 10);
-    const maxTokens = Math.min(Math.max(isNaN(requested) ? 4096 : requested, 1), MAX_TOKENS);
+    let maxTokens = Math.min(Math.max(isNaN(requested) ? 4096 : requested, 1), MAX_TOKENS);
+    const modelCap = MODEL_MAX_TOKENS[model];
+    if (modelCap) maxTokens = Math.min(maxTokens, modelCap);
 
     // --- Обращение к Groq: ответ отдаём в том же формате, что и у Groq ---
     try {

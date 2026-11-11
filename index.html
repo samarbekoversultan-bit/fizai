@@ -352,7 +352,13 @@
 
         // Модель Groq. Если придёт ошибка про модель, замените её и в netlify/functions/chat.js (список ALLOWED_MODELS)
         const GROQ_MODEL = "openai/gpt-oss-20b";
-        const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+        // Действующая vision-модель Groq (поддерживает картинки). Старая Llama 4 Scout отключена 17.07.2026.
+        const VISION_MODEL = "qwen/qwen3.8-27b";
+        // Максимум генерации: у qwen3.8-27b лимит 16 384 токена (больше Groq вернёт ошибку)
+        const VISION_MAX_TOKENS = 16384;
+        const TEXT_MAX_TOKENS = 65536;
+        // Groq разрешает не больше 3 изображений на один запрос
+        const MAX_IMAGES = 3;
 
         // ССЫЛКИ НА ВАШЕ СООБЩЕСТВО. Вставьте ссылки в кавычки. Пустая строка = кнопка не показывается.
         const TELEGRAM_URL = "https://t.me/fizai11";   // например: "https://t.me/ваш_канал"
@@ -1651,9 +1657,13 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
         window.handleFileSelect = async function(e) {
             const files = Array.from(e.target.files || []);
             e.target.value = '';
+            let skippedByLimit = false;
             for (const f of files) {
                 try {
                     if (isImageFile(f)) {
+                        // Groq принимает не больше 3 изображений на один запрос
+                        const imagesCount = chatAttachments.filter(a => a.isImage).length;
+                        if (imagesCount >= MAX_IMAGES) { skippedByLimit = true; continue; }
                         let dataUrl;
                         try { dataUrl = await compressImageFile(f); }
                         catch (e) { dataUrl = await readFileAsDataURL(f); }
@@ -1668,6 +1678,9 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
                 } catch (err) { console.error(err); }
             }
             renderChatAttachments();
+            if (skippedByLimit) {
+                alert(pick('Можно приложить не больше 3 фото за раз.', 'You can attach up to 3 photos at a time.'));
+            }
         };
 
         function renderChatAttachments() {
@@ -1760,8 +1773,9 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
                             model: (images && images.length) ? VISION_MODEL : GROQ_MODEL,
                             messages: chatHistory,
                             // Максимум для openai/gpt-oss-20b (65 536) — в лимит входят
-                            // и "мысли" модели, поэтому ответ не оборвётся на середине
-                            max_tokens: 65536
+                            // и "мысли" модели, поэтому ответ не оборвётся на середине.
+                            // Для vision-модели лимит меньше (16 384), иначе Groq отклонит запрос.
+                            max_tokens: (images && images.length) ? VISION_MAX_TOKENS : TEXT_MAX_TOKENS
                         })
                     });
 
