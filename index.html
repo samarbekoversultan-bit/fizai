@@ -1,0 +1,1892 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0b0f19">
+    <title>FizAI — Ваш умный репетитор по физике</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            900: '#0b0f19',
+                            800: '#111827',
+                            700: '#1f2937',
+                            600: '#374151',
+                        },
+                        primary: {
+                            DEFAULT: '#6366f1',
+                            hover: '#4f46e5',
+                            light: '#818cf8',
+                        },
+                        accent: {
+                            DEFAULT: '#06b6d4',
+                            hover: '#0891b2',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4f46e5; }
+        .glow-effect { box-shadow: 0 0 25px -5px rgba(99, 102, 241, 0.3); }
+        .chat-bubble-ai { background: linear-gradient(135deg, #1f2937 0%, #111827 100%); border: 1px solid #374151; }
+        .chat-bubble-user { background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); }
+
+        /* ===== Мобильная версия ===== */
+        html { -webkit-text-size-adjust: 100%; }
+        body { -webkit-tap-highlight-color: transparent; }
+        /* iOS при фокусе на поле ввода с маленьким шрифтом увеличивает страницу —
+           поэтому на телефонах делаем шрифт в полях 16px */
+        @media (max-width: 767px) {
+            input, select, textarea { font-size: 16px !important; }
+            input, button, a { touch-action: manipulation; }
+        }
+        /* Длинные формулы и тексты не рвут вёрстку */
+        .break-words, .font-mono { overflow-wrap: anywhere; word-break: break-word; }
+        /* Мобильная адаптация */
+        @media (max-width: 639px) {
+            .mobile-stack { flex-direction: column; }
+            .mobile-full { width: 100%; }
+            #chat-form { flex-wrap: wrap; }
+            #chat-form > button, #chat-form > label { flex: 1 1 44px; }
+            #user-input { min-width: 0; }
+        }
+    </style>
+</head>
+<body class="bg-dark-900 text-gray-100 font-sans antialiased h-[100dvh] flex flex-col md:flex-row overflow-hidden">
+
+    <!-- Затемнение экрана, пока на телефоне открыто меню -->
+    <div id="sidebar-overlay" onclick="toggleSidebar(false)" class="fixed inset-0 bg-black/65 z-40 hidden md:hidden"></div>
+
+    <!-- На телефоне меню выезжает слева, на десктопе — обычный сайдбар -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 max-w-[85vw] md:static md:z-auto md:w-64 md:max-w-none bg-dark-800 border-r border-dark-600 flex flex-col justify-between overflow-y-auto transition-transform duration-300 -translate-x-full md:translate-x-0">
+        <div class="md:hidden px-4 pt-4">
+            <button onclick="toggleSidebar(false)" class="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-dark-700 hover:bg-dark-600 text-gray-300 text-sm transition-all">
+                <span>Закрыть меню</span>
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div>
+            <div class="p-4 md:p-6 flex items-center space-x-3 border-b border-dark-700">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-accent flex items-center justify-center glow-effect text-white font-bold text-xl">
+                    <i class="fa-solid fa-atom animate-spin" style="animation-duration: 12s;"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-wider bg-gradient-to-r from-white via-primary-light to-accent bg-clip-text text-transparent">FizAI</h1>
+                    <p class="text-xs text-gray-400">Физика</p>
+                </div>
+            </div>
+
+            <nav class="p-4 space-y-2">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all bg-primary/20 text-primary-light font-medium">
+                    <i class="fa-solid fa-chart-pie w-5"></i>
+                    <span>Главная</span>
+                </button>
+                <button onclick="switchTab('ai')" id="nav-ai" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-gray-400 hover:bg-dark-700 hover:text-gray-200">
+                    <i class="fa-solid fa-robot w-5"></i>
+                    <span>ИИ Репетитор</span>
+                </button>
+                <button onclick="switchTab('formulas')" id="nav-formulas" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-gray-400 hover:bg-dark-700 hover:text-gray-200">
+                    <i class="fa-solid fa-book-bookmark w-5"></i>
+                    <span>Справочник формул</span>
+                </button>
+                <button onclick="switchTab('calculators')" id="nav-calculators" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-gray-400 hover:bg-dark-700 hover:text-gray-200">
+                    <i class="fa-solid fa-calculator w-5"></i>
+                    <span>Калькуляторы</span>
+                </button>
+                <button onclick="switchTab('quizzes')" id="nav-quizzes" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-gray-400 hover:bg-dark-700 hover:text-gray-200">
+                    <i class="fa-solid fa-circle-question w-5"></i>
+                    <span>Квизы</span>
+                    <span class="ml-auto text-[10px] bg-accent text-white px-1.5 py-0.5 rounded-full font-bold not-italic">NEW</span>
+                </button>
+            </nav>
+
+            <!-- Ссылки на сообщество (показываются, если в коде указаны TELEGRAM_URL / DISCORD_URL) -->
+            <div id="social-links" class="hidden px-4 pb-2 space-y-2">
+                <p class="text-[11px] uppercase tracking-wider text-gray-500 px-2">Наше сообщество</p>
+                <a class="social-telegram hidden w-full items-center space-x-3 px-4 py-2.5 rounded-xl bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 transition-all text-sm font-medium" target="_blank" rel="noopener noreferrer">
+                    <i class="fa-brands fa-telegram w-5 text-base"></i>
+                    <span>Telegram-канал</span>
+                </a>
+                <a class="social-discord hidden w-full items-center space-x-3 px-4 py-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-all text-sm font-medium" target="_blank" rel="noopener noreferrer">
+                    <i class="fa-brands fa-discord w-5 text-base"></i>
+                    <span>Discord-сервер</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="p-4 border-t border-dark-700 m-4 rounded-xl bg-dark-900/50">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
+                    <i class="fa-solid fa-bolt"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold text-gray-200">Gemini AI</p>
+                    <p class="text-[10px] text-emerald-400">● Онлайн</p>
+                </div>
+                <a href="https://t.me/fizai11" target="_blank" rel="noopener noreferrer" title="Наш Telegram-канал" class="social-telegram hidden w-9 h-9 rounded-full bg-sky-500/15 text-sky-400 hover:bg-sky-500 hover:text-white items-center justify-center transition-all text-lg shrink-0">
+                    <i class="fa-brands fa-telegram"></i>
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 min-h-0 flex flex-col min-w-0 overflow-hidden">
+        <header class="h-14 md:h-16 shrink-0 bg-dark-800/80 backdrop-blur-md border-b border-dark-600 flex items-center justify-between gap-2 px-3 sm:px-4 md:px-6 z-10">
+            <div class="flex items-center gap-2 min-w-0">
+                <button onclick="toggleSidebar()" aria-label="Открыть меню"
+                        class="md:hidden w-10 h-10 shrink-0 rounded-xl bg-dark-700 hover:bg-dark-600 border border-dark-600 text-gray-200 flex items-center justify-center transition-all">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+                <h2 id="current-title" class="text-base md:text-lg font-semibold text-gray-100 truncate">Обзор системы</h2>
+            </div>
+            <div class="flex items-center gap-2 md:gap-3 shrink-0">
+                <span class="hidden lg:inline-block text-xs bg-primary/20 text-primary-light px-3 py-1 rounded-full border border-primary/30">Школьный курс</span>
+                <button id="lang-ru-btn" onclick="switchInterfaceLang('ru')" title="Вернуть русский интерфейс"
+                        class="text-xs bg-dark-700 hover:bg-dark-600 text-gray-200 px-2.5 sm:px-3 py-1.5 rounded-full border border-dark-600 transition-all flex items-center gap-2 shrink-0">
+                    <i class="fa-solid fa-language"></i>
+                    <span class="hidden sm:inline">Русский</span>
+                </button>
+                <button id="lang-en-btn" onclick="switchInterfaceLang('en')" title="Switch interface to English"
+                        class="text-xs bg-dark-700 hover:bg-dark-600 text-gray-200 px-2.5 sm:px-3 py-1.5 rounded-full border border-dark-600 transition-all flex items-center gap-2 shrink-0">
+                    <i class="fa-solid fa-language"></i>
+                    <span class="hidden sm:inline">English</span>
+                </button>
+                <button id="lang-kk-btn" onclick="switchInterfaceLang('kk')" title="Интерфейсті қазақшаға ауыстыру"
+                        class="text-xs bg-dark-700 hover:bg-dark-600 text-gray-200 px-2.5 sm:px-3 py-1.5 rounded-full border border-dark-600 transition-all flex items-center gap-2 shrink-0">
+                    <i class="fa-solid fa-language"></i>
+                    <span class="hidden sm:inline">Қазақша</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 md:p-8">
+
+            <!-- DASHBOARD -->
+            <section id="view-dashboard" class="tab-content space-y-6 max-w-6xl mx-auto">
+                <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/20 via-dark-800 to-accent/20 p-5 md:p-8 border border-dark-600">
+                    <div class="relative z-10 max-w-2xl">
+                        <div class="flex flex-wrap gap-2 items-center">
+                            <span class="text-xs font-semibold uppercase tracking-wider bg-primary text-white px-3 py-1 rounded-full">Полный курс физики</span>
+                            <span class="text-xs font-semibold uppercase tracking-wider bg-accent text-white px-3 py-1 rounded-full animate-pulse">✨ Новинка: квизы</span>
+                        </div>
+                        <h2 class="text-2xl md:text-4xl font-extrabold mt-3 text-white leading-tight">От механики до квантовой физики с FizAI</h2>
+                        <p class="text-gray-300 mt-3 text-sm md:text-base leading-relaxed">
+                            Полная база формул, законов и калькуляторов для учеников. Интерактивный ИИ-помощник для разбора задач.
+                        </p>
+                        <div class="mt-5 md:mt-6 flex flex-col sm:flex-row flex-wrap gap-3">
+                            <button onclick="switchTab('ai')" class="px-6 py-3 bg-primary hover:bg-primary-hover text-white font-medium rounded-xl shadow-lg transition-all flex items-center justify-center sm:justify-start space-x-2">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                <span>Задать вопрос ИИ</span>
+                            </button>
+                            <button onclick="switchTab('formulas')" class="px-6 py-3 bg-dark-700 hover:bg-dark-600 text-gray-200 font-medium rounded-xl border border-dark-600 transition-all flex items-center justify-center sm:justify-start space-x-2">
+                                <i class="fa-solid fa-book"></i>
+                                <span>Все формулы</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="community-banner" class="hidden bg-dark-800 border border-dark-600 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Присоединяйся к сообществу FizAI</h3>
+                        <p class="text-gray-400 text-sm mt-1">Новости, разборы задач и общение с другими учениками.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <a class="social-telegram hidden items-center space-x-2 px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium transition-all" target="_blank" rel="noopener noreferrer">
+                            <i class="fa-brands fa-telegram"></i>
+                            <span>Telegram</span>
+                        </a>
+                        <a class="social-discord hidden items-center space-x-2 px-5 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-all" target="_blank" rel="noopener noreferrer">
+                            <i class="fa-brands fa-discord"></i>
+                            <span>Discord</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                    <div onclick="switchTab('ai')" class="bg-dark-800 border border-dark-600 p-6 rounded-2xl cursor-pointer hover:border-primary/50 transition-all group">
+                        <div class="w-12 h-12 rounded-xl bg-primary/20 text-primary-light flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-brain"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white">ИИ Репетитор</h3>
+                        <p class="text-gray-400 text-sm mt-2">Разбор задач по кинематике, динамике, термодинамике, электродинамике и квантам.</p>
+                    </div>
+                    <div onclick="switchTab('formulas')" class="bg-dark-800 border border-dark-600 p-6 rounded-2xl cursor-pointer hover:border-accent/50 transition-all group">
+                        <div class="w-12 h-12 rounded-xl bg-accent/20 text-accent flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-book-bookmark"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white">Справочник формул</h3>
+                        <p class="text-gray-400 text-sm mt-2">Полная база формул со всеми законами классической и современной физики.</p>
+                    </div>
+                    <div onclick="switchTab('calculators')" class="bg-dark-800 border border-dark-600 p-6 rounded-2xl cursor-pointer hover:border-emerald-500/50 transition-all group">
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-calculator"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white">Калькуляторы</h3>
+                        <p class="text-gray-400 text-sm mt-2">Быстрый расчет физических величин по всем формулам справочника.</p>
+                    </div>
+                    <div onclick="switchTab('quizzes')" class="relative bg-dark-800 border border-dark-600 p-6 rounded-2xl cursor-pointer hover:border-rose-500/50 transition-all group overflow-hidden">
+                        <span class="absolute top-4 right-4 text-[10px] bg-accent text-white px-2 py-0.5 rounded-full font-bold animate-pulse">NEW</span>
+                        <div class="w-12 h-12 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-circle-question"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white">Квизы</h3>
+                        <p class="text-gray-400 text-sm mt-2">Выбери класс (7–11) и проверь себя: вопросы с четырьмя вариантами ответа, каждый раз всё заново.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AI CHAT -->
+            <section id="view-ai" class="tab-content hidden h-full flex flex-col max-w-4xl mx-auto">
+                <div class="flex-1 bg-dark-800 border border-dark-600 rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+                    <div class="p-4 bg-dark-700/50 border-b border-dark-600 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-full bg-primary/20 text-primary-light flex items-center justify-center">
+                                <i class="fa-solid fa-robot"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-white text-sm">FizAI Tutor</h3>
+                                <p class="text-xs text-gray-400">Помогу с любым предметом и вопросом</p>
+                            </div>
+                        </div>
+                        <button onclick="clearChat()" class="text-xs bg-dark-600 hover:bg-dark-500 text-gray-300 px-3 py-1.5 rounded-lg transition-all">Очистить чат</button>
+                    </div>
+
+                    <div id="chat-container" data-greeting="1" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+                    </div>
+
+                    <div class="px-4 py-2 bg-dark-700/30 border-t border-dark-600 flex gap-2 overflow-x-auto text-xs">
+                        <button onclick="sendPresetPrompt(pick('Объясни тему: второй закон Ньютона', 'Explain the topic: Newton’s second law'))" class="bg-dark-700 hover:bg-dark-600 px-3 py-1.5 rounded-lg text-gray-300 whitespace-nowrap border border-dark-600">🚗 Второй закон Ньютона</button>
+                        <button onclick="sendPresetPrompt(pick('Объясни тему: закон Кулона и напряжённость поля', 'Explain the topic: Coulomb’s law and electric field strength'))" class="bg-dark-700 hover:bg-dark-600 px-3 py-1.5 rounded-lg text-gray-300 whitespace-nowrap border border-dark-600">⚡ Закон Кулона</button>
+                        <button onclick="sendPresetPrompt(pick('Объясни тему: идеальный газ и уравнение Менделеева — Клапейрона', 'Explain the topic: ideal gas and the Mendeleev–Clapeyron equation'))" class="bg-dark-700 hover:bg-dark-600 px-3 py-1.5 rounded-lg text-gray-300 whitespace-nowrap border border-dark-600">🌡️ МКТ и Клапейрон</button>
+                    </div>
+
+                    <div class="p-4 bg-dark-800 border-t border-dark-600 space-y-2">
+                        <div id="chat-attachments" class="flex flex-wrap gap-2"></div>
+                        <form id="chat-form" onsubmit="handleChatSubmit(event)" class="flex gap-2 items-end">
+                            <label class="shrink-0 w-11 h-11 rounded-xl bg-dark-700 hover:bg-dark-600 border border-dark-600 text-gray-200 flex items-center justify-center cursor-pointer transition-all" title="Сфотографировать">
+                                <i class="fa-solid fa-camera"></i>
+                                <input type="file" id="chat-camera-input" accept="image/*" capture="environment" class="hidden" onchange="handleFileSelect(event)">
+                            </label>
+                            <label class="shrink-0 w-11 h-11 rounded-xl bg-dark-700 hover:bg-dark-600 border border-dark-600 text-gray-200 flex items-center justify-center cursor-pointer transition-all" title="Добавить фото или файл">
+                                <i class="fa-solid fa-image"></i>
+                                <input type="file" id="chat-file-input" accept="image/*,application/pdf,text/*,.doc,.docx,.xls,.xlsx" multiple class="hidden" onchange="handleFileSelect(event)">
+                            </label>
+                            <input type="text" id="user-input" placeholder="Спроси тему, пришли задачу, фото или файл..." class="flex-1 bg-dark-900 border border-dark-600 rounded-xl px-4 py-3 text-sm text-gray-100 focus:outline-none focus:border-primary transition-all">
+                            <button type="submit" id="send-btn" class="bg-primary hover:bg-primary-hover text-white px-6 py-3 rounded-xl font-medium transition-all flex items-center justify-center"><i class="fa-solid fa-paper-plane"></i></button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- FORMULAS -->
+            <section id="view-formulas" class="tab-content hidden max-w-6xl mx-auto space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-xl md:text-2xl font-bold text-white">Справочник формул</h3>
+                        <p class="text-gray-400 text-sm">Полная база формул по всем разделам школьного курса</p>
+                    </div>
+                    <div class="relative w-full md:w-72">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-search"></i></span>
+                        <input type="text" id="formula-search" oninput="filterFormulas()" placeholder="Поиск формулы..." class="w-full bg-dark-800 border border-dark-600 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-primary">
+                    </div>
+                </div>
+
+                <div id="formulas-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </section>
+
+            <!-- CALCULATORS -->
+            <section id="view-calculators" class="tab-content hidden max-w-6xl mx-auto space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-xl md:text-2xl font-bold text-white">Интерактивные калькуляторы</h3>
+                        <p class="text-gray-400 text-sm">Расчет по всем формулам из справочника</p>
+                    </div>
+                    <div class="relative w-full md:w-72">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-search"></i></span>
+                        <input type="text" id="calc-search" oninput="filterCalculators()" placeholder="Поиск калькулятора..." class="w-full bg-dark-800 border border-dark-600 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-primary">
+                    </div>
+                </div>
+
+                <div id="calculators-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                </div>
+            </section>
+
+            <!-- QUIZZES -->
+            <section id="view-quizzes" class="tab-content hidden max-w-4xl mx-auto space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-xl md:text-2xl font-bold text-white">Квизы по физике</h3>
+                        <p class="text-gray-400 text-sm">Выбери класс (7–11), а дальше отвечай на вопросы по его программе: четыре варианта ответа, каждый раз всё заново</p>
+                    </div>
+                    <span class="text-xs bg-accent/20 text-accent px-3 py-1 rounded-full border border-accent/30 self-start md:self-auto">✨ Новое</span>
+                </div>
+
+                <div id="quiz-card"></div>
+            </section>
+
+        </div>
+    </main>
+
+    <script>
+        // API-ключ Groq хранится ТОЛЬКО на сервере (Netlify Function) и в коде сайта не появляется.
+        // Файл функции: netlify/functions/chat.js
+        const API_ENDPOINT = '/.netlify/functions/chat';
+        // Локально (открытие файла двойным кликом) ИИ не работает — только на опубликованном сайте.
+        const LOCAL_FILE_HINT = 'ИИ-репетитор работает только на опубликованной версии сайта. Откройте его по адресу в браузере (https://...), а не с диска.';
+
+        // Модель Groq. Если придёт ошибка про модель, замените её и в netlify/functions/chat.js (список ALLOWED_MODELS)
+        const GROQ_MODEL = "openai/gpt-oss-20b";
+        // Действующая vision-модель Groq (поддерживает картинки). Старая Llama 4 Scout отключена 17.07.2026.
+        const VISION_MODEL = "qwen/qwen3.8-27b";
+        // Максимум генерации: у qwen3.8-27b лимит 16 384 токена (больше Groq вернёт ошибку)
+        const VISION_MAX_TOKENS = 16384;
+        const TEXT_MAX_TOKENS = 65536;
+        // Groq разрешает не больше 3 изображений на один запрос
+        const MAX_IMAGES = 3;
+
+        // ССЫЛКИ НА ВАШЕ СООБЩЕСТВО. Вставьте ссылки в кавычки. Пустая строка = кнопка не показывается.
+        const TELEGRAM_URL = "https://t.me/fizai11";   // например: "https://t.me/ваш_канал"
+        const DISCORD_URL = "";    // например: "https://discord.gg/ваш_код"
+
+        function initSocialLinks() {
+            const links = { telegram: TELEGRAM_URL, discord: DISCORD_URL };
+            let any = false;
+            Object.keys(links).forEach(name => {
+                const url = String(links[name] || '').trim();
+                const ok = /^https:\/\/[^\s"'<>]+$/i.test(url); // принимаем только обычные https-ссылки
+                document.querySelectorAll('.social-' + name).forEach(a => {
+                    if (ok) { a.href = url; a.classList.remove('hidden'); a.classList.add('flex'); }
+                    else { a.classList.add('hidden'); }
+                });
+                if (ok) any = true;
+            });
+            ['social-links', 'community-banner'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.toggle('hidden', !any);
+            });
+        }
+        window.addEventListener('DOMContentLoaded', initSocialLinks);
+
+        // ===== ПЕРЕВОД ИНТЕРФЕЙСА (русский <-> английский) =====
+        let currentLang = 'ru';
+        let EN_CACHE = {};      // русская строка -> английский перевод
+        let KK_CACHE = {};      // русская строка -> казахский перевод
+        let DOM_SNAPSHOT = [];  // исходные русские тексты, чтобы вернуть их обратно
+        let currentTab = 'dashboard';
+        const I18N_CACHE_EN_KEY = 'fizai_en_cache_v1';
+        const I18N_CACHE_KK_KEY = 'fizai_kk_cache_v1';
+        const I18N_LANG_KEY = 'fizai_lang_v1';
+        const I18N_MARK = 'ZZMKZZ'; // маркер между строками в пакетном переводе
+
+        // Заголовки разделов: [русский, английский]
+        const TITLES = {
+            dashboard: ['Обзор системы', 'System Overview', 'Жүйеге шолу'],
+            ai: ['ИИ Репетитор по физике', 'AI Physics Tutor', 'Физика бойынша ЖИ репетитор'],
+            formulas: ['Справочник формул', 'Formula Reference', 'Формулалар анықтамасы'],
+            calculators: ['Интерактивные калькуляторы', 'Interactive Calculators', 'Интерактивті калькуляторлар'],
+            quizzes: ['Квизы по физике', 'Physics Quizzes', 'Физика квиздері']
+        };
+
+        // Тексты, которые задаются прямо в коде: русский и английский вариант
+        function pick(ru, en, kk) { if (currentLang === 'en') return en; if (currentLang === 'kk') return (kk != null ? kk : ru); return ru; }
+        function norm(s) { return String(s).replace(/\s+/g, ' ').trim(); }
+        function hasRu(s) { return typeof s === 'string' && /[А-Яа-яЁё]/.test(s); }
+
+        // Резервные/уточнённые английские тексты (ручной перевод важнее машинного)
+        const HAND_EN = {
+            'Обзор системы': 'System Overview',
+            'ИИ Репетитор по физике': 'AI Physics Tutor',
+            'Справочник формул': 'Formula Reference',
+            'Интерактивные калькуляторы': 'Interactive Calculators',
+            'Квизы по физике': 'Physics Quizzes',
+            'Квизы': 'Quizzes',
+            // формулы и подписи с кириллическими индексами
+            'sобщ — весь путь, tобщ — все время': 'stot — total path, ttot — total time',
+            'Aпол — полезная работа, Aзат — затраченная': 'Ause — useful work, Atot — total work',
+            'n — концентрация, vср — средняя скорость': 'n — concentration, vav — average speed',
+            'Qотд — отданная теплота, Qпол — полученная': 'Qout — heat released, Qin — heat absorbed',
+            'Q — теплота, Aвнеш — работа внешних сил': 'Q — heat, Aext — work done by external forces',
+            'Aгаза — работа самого газа': 'Agas — work done by the gas itself',
+            'Aвых — работа выхода, Ek — кинет. энергия': 'Aout — work function, Ek — kinetic energy',
+            'Сила Fупр': 'Elastic force Fel',
+            'Сила Fтр': 'Friction force Ffr',
+            'Сила FА': 'Buoyant force F_A',
+            'Полезная работа Aпол': 'Useful work Ause',
+            'Затраченная работа Aзат': 'Total work Atot',
+            'Отданная теплота Qотд': 'Heat released Qout',
+            'Полученная теплота Qпол': 'Heat absorbed Qin',
+            'Работа внешних сил Aвнеш': 'Work of external forces Aext',
+            'Работа газа Aгаза': 'Work done by the gas Agas',
+            'Работа выхода Aвых': 'Work function Aout',
+            'Средняя скорость vср': 'Average speed vav',
+            // неудачные машинные переводы
+            'Работа A': 'Work A',
+            'Путь s': 'Distance s',
+            'Сила Ампера': 'Ampere force',
+            'Сила F₂₁': 'Force F₂₁',
+            'Сила F₂': 'Force F₂',
+            'Сила тока': 'Electric current',
+            'Сила тока I': 'Electric current I',
+            'Сила реакции опоры N': 'Normal force N',
+            'Коэффициент полезного действия (КПД)': 'Efficiency (η)',
+            'Работа тока': 'Work done by current',
+            'Работа под давлением.': 'Work done under pressure.',
+            'Работа под углом к перемещению.': 'Work at an angle to the displacement.',
+            // единицы измерения (машинный перевод часто ошибается на коротких символах)
+            'с': 's',
+            'В': 'V',
+            'Гн': 'H',
+            'Тл': 'T',
+            'Кл': 'C',
+            'Дж/К': 'J/K',
+            'Н·м': 'N·m',
+            'Н·м²/Кл²': 'N·m²/C²',
+            'Н·м²/кг²': 'N·m²/kg²',
+            'Ом·м': 'Ohm·m',
+            'Дж·с': 'J·s',
+            'Дж/(кг·°C)': 'J/(kg·°C)',
+            'Дж/(моль·К)': 'J/(mol·K)',
+            'моль': 'mol'
+        };
+
+        // Перевод динамических строк: формулы, калькуляторы, текст интерфейса
+        function T(s) {
+            if (currentLang === 'ru' || typeof s !== 'string') return s;
+            const k = norm(s);
+            if (currentLang === 'en') return HAND_EN[k] || EN_CACHE[k] || s;
+            return KK_CACHE[k] || s;
+        }
+        window.T = T;
+        window.pick = pick;
+
+        // Английские варианты формул с кириллическими индексами (вручную, чтобы не ломать символы)
+        const FORMULA_EN = {
+            'vср = sобщ / tобщ': 'vav = stot / ttot',
+            'Fупр = k · x': 'Fel = k · x',
+            'Fтр = μ · N': 'Ffr = μ · N',
+            'F_А = ρ · g · V': 'F_A = ρ · g · V',
+            'η = (Aпол / Aзат) · 100%': 'η = (Ause / Atot) · 100%',
+            'p = ⅓ · m₀ · n · v²ср': 'p = ⅓ · m₀ · n · v²av',
+            'Qотд = Qпол': 'Qout = Qin',
+            'ΔU = Q + Aвнеш': 'ΔU = Q + Aext',
+            'Q = ΔU + Aгаза': 'Q = ΔU + Agas',
+            'h · ν = Aвых + Ek': 'h · ν = Aout + Ek'
+        };
+        function trFormula(f) {
+            if (currentLang !== 'en' || typeof f !== 'string') return f;
+            return FORMULA_EN[f] || f;
+        }
+        window.trFormula = trFormula;
+
+        // --- Сбор строк для перевода ---
+        function collectDomTexts() {
+            const skipIds = new Set(['formulas-grid', 'calculators-grid', 'quiz-card']);
+            const items = [];
+            const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_TEXT, {
+                acceptNode(node) {
+                    if (!hasRu(node.nodeValue)) return NodeFilter.FILTER_REJECT;
+                    const p = node.parentElement;
+                    if (!p) return NodeFilter.FILTER_REJECT;
+                    const tag = p.tagName;
+                    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEXTAREA') return NodeFilter.FILTER_REJECT;
+                    for (let el = p; el; el = el.parentElement) {
+                        if (skipIds.has(el.id)) return NodeFilter.FILTER_REJECT;
+                    }
+                    return NodeFilter.FILTER_ACCEPT;
+                }
+            });
+            let node;
+            while ((node = walker.nextNode())) {
+                const key = norm(node.nodeValue);
+                if (key) items.push({ kind: 'text', node: node, key: key });
+            }
+            document.querySelectorAll('[placeholder], [title]').forEach(el => {
+                ['placeholder', 'title'].forEach(attr => {
+                    const v = el.getAttribute(attr);
+                    if (hasRu(v)) items.push({ kind: 'attr', el: el, attr: attr, key: norm(v) });
+                });
+            });
+            return items;
+        }
+
+        function collectDataKeys() {
+            const set = new Set();
+            formulasDB.forEach(f => {
+                [f.name, f.category, f.desc, f.vars, f.unit].forEach(s => { if (hasRu(s)) set.add(norm(s)); });
+            });
+            Object.values(calcSpecs).forEach(spec => {
+                spec.ins.forEach(inp => {
+                    if (hasRu(inp[1])) set.add(norm(inp[1]));
+                    if (hasRu(inp[3])) set.add(norm(String(inp[3])));
+                });
+                if (hasRu(spec.out[0])) set.add(norm(spec.out[0]));
+                if (hasRu(spec.out[1])) set.add(norm(String(spec.out[1])));
+            });
+            quizDB.forEach(q => {
+                if (hasRu(q.q)) set.add(norm(q.q));
+                q.options.forEach(o => { if (hasRu(o)) set.add(norm(o)); });
+            });
+            return set;
+        }
+
+        function collectAllKeys(domItems) {
+            const set = collectDataKeys();
+            domItems.forEach(i => { if (hasRu(i.key)) set.add(norm(i.key)); });
+            return [...set].filter(k => k && hasRu(k));
+        }
+
+        // --- Пакетный перевод через Google Translate (без ключа) ---
+        async function fetchGtx(keys, tl) {
+            const target = tl || 'en';
+            const q = keys.join('\n' + I18N_MARK + '\n');
+            const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const timer = ctrl ? setTimeout(() => ctrl.abort(), 20000) : null;
+            try {
+                const r = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=ru&tl=' + encodeURIComponent(target) + '&dt=t&q=' + encodeURIComponent(q), ctrl ? { signal: ctrl.signal } : {});
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const data = await r.json();
+                const joined = (Array.isArray(data[0]) ? data[0] : []).map(c => (Array.isArray(c) ? c[0] : '') || '').join('');
+                const parts = joined.split(I18N_MARK);
+                if (parts.length !== keys.length) throw new Error('не удалось разбить перевод (' + parts.length + ' из ' + keys.length + ')');
+                return keys.map((k, i) => [k, norm(parts[i])]);
+            } finally {
+                if (timer) clearTimeout(timer);
+            }
+        }
+
+        async function translateKeys(keys, tl) {
+            const target = tl || 'en';
+            const cache = target === 'kk' ? KK_CACHE : EN_CACHE;
+            const cacheKey = target === 'kk' ? I18N_CACHE_KK_KEY : I18N_CACHE_EN_KEY;
+            const missing = [...new Set(keys)].filter(k => hasRu(k) && !cache[k]);
+            if (!missing.length) return;
+            const chunks = [];
+            let cur = [], len = 0;
+            missing.forEach(k => {
+                if (cur.length >= 25 || (cur.length && len + k.length > 850)) { chunks.push(cur); cur = []; len = 0; }
+                cur.push(k); len += k.length;
+            });
+            if (cur.length) chunks.push(cur);
+
+            for (let i = 0; i < chunks.length; i += 4) {
+                const group = chunks.slice(i, i + 4);
+                const results = await Promise.all(group.map(chunk => (async () => {
+                    let lastErr = null;
+                    for (let a = 0; a < 3; a++) {
+                        try { return await fetchGtx(chunk, target); }
+                        catch (e) { lastErr = e; await new Promise(r => setTimeout(r, 700 * (a + 1))); }
+                    }
+                    throw lastErr;
+                })()));
+                results.forEach(pairs => pairs.forEach(p => { if (p[1]) cache[p[0]] = p[1]; }));
+                if (i + 4 < chunks.length) await new Promise(r => setTimeout(r, 250));
+            }
+            try { localStorage.setItem(cacheKey, JSON.stringify(cache)); } catch (e) {}
+        }
+
+        // --- Применение / откат ---
+        function applyLanguage(lang, domItems) {
+            if (lang === 'ru') { revertToRussian(); return; }
+            currentLang = lang;
+            document.documentElement.lang = lang === 'kk' ? 'kk' : 'en';
+            domItems.forEach(item => {
+                const tr = T(item.key);
+                if (!tr || tr === item.key) return;
+                if (item.kind === 'text') {
+                    const node = item.node;
+                    if (!node || !node.isConnected) return;
+                    DOM_SNAPSHOT.push({ type: 'text', node: node, value: node.nodeValue });
+                    const m = node.nodeValue.match(/^(\s*)([\s\S]*?)(\s*)$/);
+                    node.nodeValue = (m ? m[1] : '') + tr + (m ? m[3] : '');
+                } else {
+                    const el = item.el;
+                    if (!el || !el.isConnected) return;
+                    DOM_SNAPSHOT.push({ type: 'attr', el: el, attr: item.attr, value: el.getAttribute(item.attr) });
+                    el.setAttribute(item.attr, tr);
+                }
+            });
+            refreshDynamic();
+            updateSystemPrompt();
+            try { localStorage.setItem(I18N_LANG_KEY, lang); } catch (e) {}
+        }
+
+        function revertToRussian() {
+            currentLang = 'ru';
+            document.documentElement.lang = 'ru';
+            DOM_SNAPSHOT.forEach(s => {
+                if (s.type === 'text') { if (s.node.isConnected) s.node.nodeValue = s.value; }
+                else if (s.el.isConnected) s.el.setAttribute(s.attr, s.value);
+            });
+            DOM_SNAPSHOT = [];
+            refreshDynamic();
+            updateSystemPrompt();
+            try { localStorage.setItem(I18N_LANG_KEY, 'ru'); } catch (e) {}
+        }
+
+        function syncLangButton() { syncLangButtons(); }
+
+        // Перерисовывает всё, что собирается из данных
+        function refreshDynamic() {
+            const t = TITLES[currentTab] || ['FizAI', 'FizAI', 'FizAI'];
+            const titleEl = document.getElementById('current-title');
+            if (titleEl) {
+                const idx = currentLang === 'en' ? 1 : currentLang === 'kk' ? 2 : 0;
+                titleEl.innerText = t[idx] || t[0];
+            }
+            if (typeof filterFormulas === 'function') filterFormulas();
+            if (typeof filterCalculators === 'function') filterCalculators();
+            if (typeof renderQuiz === 'function') renderQuiz();
+            const chat = document.getElementById('chat-container');
+            if (chat && chat.dataset.greeting === '1') chat.innerHTML = greetingHTML();
+            if (chat && chat.dataset.greeting === 'cleared') chat.innerHTML = clearedHTML();
+            syncLangButton();
+        }
+
+        function updateSystemPrompt() {
+            if (typeof chatHistory !== 'undefined' && chatHistory[0] && chatHistory[0].role === 'system') {
+                chatHistory[0].content = systemPrompt();
+            }
+        }
+
+        window.switchInterfaceLang = async function(target) {
+            if (target === 'ru') {
+                revertToRussian();
+                syncLangButtons();
+                return;
+            }
+            const btn = document.getElementById(target === 'kk' ? 'lang-kk-btn' : 'lang-en-btn');
+            if (!btn || btn.disabled) return;
+            // Если уже на этом языке — вернуться на русский
+            if (currentLang === target) {
+                revertToRussian();
+                syncLangButtons();
+                return;
+            }
+            btn.disabled = true;
+            const icon = btn.querySelector('i');
+            const oldIcon = icon.className;
+            icon.className = 'fa-solid fa-spinner fa-spin';
+            try {
+                if (currentLang !== 'ru') revertToRussian();
+                const domItems = collectDomTexts();
+                await translateKeys(collectAllKeys(domItems), target);
+                applyLanguage(target, domItems);
+            } catch (e) {
+                alert('Не удалось перевести интерфейс: ' + (e && e.message ? e.message : e));
+            } finally {
+                btn.disabled = false;
+                icon.className = oldIcon;
+                syncLangButtons();
+            }
+        };
+
+        function syncLangButtons() {
+            document.querySelectorAll('#lang-ru-btn, #lang-en-btn, #lang-kk-btn').forEach(b => {
+                b.classList.remove('bg-primary/30', 'border-primary/50');
+            });
+            if (currentLang === 'ru') {
+                const b = document.getElementById('lang-ru-btn');
+                if (b) { b.classList.add('bg-primary/30', 'border-primary/50'); }
+            } else if (currentLang === 'en') {
+                const b = document.getElementById('lang-en-btn');
+                if (b) { b.classList.add('bg-primary/30', 'border-primary/50'); }
+            } else if (currentLang === 'kk') {
+                const b = document.getElementById('lang-kk-btn');
+                if (b) { b.classList.add('bg-primary/30', 'border-primary/50'); }
+            }
+        }
+
+        // Приветствие в чате (перестраивается при смене языка)
+        function greetingHTML() {
+            return `
+                <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs shrink-0"><i class="fa-solid fa-robot"></i></div>
+                    <div class="chat-bubble-ai p-4 rounded-2xl text-sm text-gray-200 max-w-xl shadow-md">
+                        <p class="font-semibold text-primary-light mb-1">${pick('Привет! Я помогу тебе с любым вопросом.', 'Hi! I will help you with any question.', 'Сәлем! Кез келген сұрағыңа көмектесемін.')}</p>
+                        <p>${pick('Спроси тему, пришли задачу, фото или файл — я объясню, помогу решить, перевести или разобраться. Работаю по всем предметам.', 'Ask a topic, send a problem, photo or file — I will explain, help solve, translate or figure it out. I cover all subjects.', 'Тақырып сұра, есеп, фото немесе файл жібер — түсіндіремін, шешуге көмектесемін. Барлық пәндер бойынша жұмыс істеймін.')}</p>
+                    </div>
+                </div>`;
+        }
+
+        // «Чат очищен» (тоже перестраивается при смене языка)
+        function clearedHTML() {
+            return `
+                <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs shrink-0"><i class="fa-solid fa-robot"></i></div>
+                    <div class="chat-bubble-ai p-4 rounded-2xl text-sm text-gray-200 max-w-xl shadow-md">
+                        <p class="font-semibold text-primary-light mb-1">${pick('Чат очищен!', 'Chat cleared!', 'Чат тазаланды!')}</p>
+                        <p>${pick('Какую тему или задачу разберём?', 'What topic or problem should we look at?', 'Қандай тақырып немесе есеп қарастырамыз?')}</p>
+                    </div>
+                </div>`;
+        }
+
+        function initGreeting() {
+            const chat = document.getElementById('chat-container');
+            if (chat && !chat.children.length) {
+                chat.innerHTML = greetingHTML();
+                chat.dataset.greeting = '1';
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initGreeting();
+            (async () => {
+                try { EN_CACHE = JSON.parse(localStorage.getItem(I18N_CACHE_EN_KEY) || '{}') || {}; } catch (e) { EN_CACHE = {}; }
+            try { KK_CACHE = JSON.parse(localStorage.getItem(I18N_CACHE_KK_KEY) || '{}') || {}; } catch (e) { KK_CACHE = {}; }
+                let saved = null;
+                try { saved = localStorage.getItem(I18N_LANG_KEY); } catch (e) {}
+                if (saved !== 'en' && saved !== 'kk') return;
+                try {
+                    const domItems = collectDomTexts();
+                    await translateKeys(collectAllKeys(domItems), saved);
+                    applyLanguage(saved, domItems);
+                } catch (e) { /* остаёмся на русском */ }
+            })();
+        });
+
+        // ===== Мобильное меню (выдвижная панель) =====
+        window.toggleSidebar = function(force) {
+            const sb = document.getElementById('sidebar');
+            const ov = document.getElementById('sidebar-overlay');
+            if (!sb) return;
+            const open = typeof force === 'boolean' ? force : sb.classList.contains('-translate-x-full');
+            sb.classList.toggle('-translate-x-full', !open);
+            if (ov) ov.classList.toggle('hidden', !open);
+            document.body.style.overflow = open ? 'hidden' : '';
+        };
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') window.toggleSidebar(false);
+        });
+
+        window.switchTab = function(tabId) {
+            currentTab = tabId;
+            if (typeof toggleSidebar === 'function') toggleSidebar(false); // на телефоне закрываем меню
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-primary/20', 'text-primary-light', 'font-medium');
+                btn.classList.add('text-gray-400', 'hover:bg-dark-700', 'hover:text-gray-200');
+            });
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if(activeNav) {
+                activeNav.classList.remove('text-gray-400', 'hover:bg-dark-700', 'hover:text-gray-200');
+                activeNav.classList.add('bg-primary/20', 'text-primary-light', 'font-medium');
+            }
+
+            const title = TITLES[tabId] || ['FizAI', 'FizAI', 'FizAI'];
+            const idx = currentLang === 'en' ? 1 : currentLang === 'kk' ? 2 : 0;
+            document.getElementById('current-title').innerText = title[idx] || title[0];
+        }
+
+        // ПОЛНАЯ БАЗА ВСЕХ ВАШИХ ФОРМУЛ И КОНСТАНТ
+        const formulasDB = [
+            // Кинематика и механика
+            { name: "Скорость (через путь и время)", formula: "v = S / t", category: "Кинематика", desc: "Быстрота перемещения тела.", vars: "S — путь, t — время", unit: "м/с" },
+            { name: "Путь (через скорость и время)", formula: "s = v · t", category: "Кинематика", desc: "Пройденное расстояние при равномерном движении.", vars: "v — скорость, t — время", unit: "м" },
+            { name: "Время движения", formula: "t = s / v", category: "Кинематика", desc: "Время в пути.", vars: "s — путь, v — скорость", unit: "с" },
+            { name: "Средняя скорость", formula: "vср = sобщ / tобщ", category: "Кинематика", desc: "Отношение всего пути ко всему времени.", vars: "sобщ — весь путь, tобщ — все время", unit: "м/с" },
+            { name: "Плотность вещества", formula: "ρ = m / V", category: "Механика", desc: "Масса единицы объема.", vars: "m — масса, V — объем", unit: "кг/м³" },
+            { name: "Масса через плотность", formula: "m = ρ · V", category: "Механика", desc: "Определение массы тела.", vars: "ρ — плотность, V — объем", unit: "кг" },
+            { name: "Объем через плотность", formula: "V = m / ρ", category: "Механика", desc: "Определение объема тела.", vars: "m — масса, ρ — плотность", unit: "м³" },
+            { name: "Ускорение", formula: "a = (v − v₀) / t", category: "Кинематика", desc: "Быстрота изменения скорости.", vars: "v — конечная скорость, v₀ — начальная, t — время", unit: "м/с²" },
+            { name: "Скорость при равноускоренном движении", formula: "v = v₀ + a · t", category: "Кинематика", desc: "Закон изменения скорости.", vars: "v₀ — нач. скорость, a — ускорение, t — время", unit: "м/с" },
+            { name: "Перемещение при равноускоренном движении", formula: "s = v₀t + (a · t²) / 2", category: "Кинематика", desc: "Закон движения.", vars: "v₀ — нач. скорость, a — ускорение, t — время", unit: "м" },
+            { name: "Формула без времени", formula: "v² − v₀² = 2 · a · s", category: "Кинематика", desc: "Связь скорости, ускорения и пути.", vars: "v, v₀ — скорости, a — ускорение, s — путь", unit: "м²/с²" },
+            { name: "Перемещение через среднюю скорость", formula: "s = ((v₀ + v) · t) / 2", category: "Кинематика", desc: "Путь при постоянном ускорении.", vars: "v₀, v — скорости, t — время", unit: "м" },
+            { name: "Свободное падение (скорость)", formula: "v = g · t", category: "Динамика", desc: "Падение без начальной скорости.", vars: "g ≈ 9.8 м/с², t — время", unit: "м/с" },
+            { name: "Свободное падение (высота)", formula: "h = (g · t²) / 2", category: "Динамика", desc: "Высота падения.", vars: "g ≈ 9.8 м/с², t — время", unit: "м" },
+            { name: "Свободное падение (без времени)", formula: "v² = 2 · g · h", category: "Динамика", desc: "Скорость на высоте h.", vars: "g — ускорение свободного падения, h — высота", unit: "м²/с²" },
+            { name: "Период и частота (1)", formula: "T = t / N", category: "Колебания", desc: "Время одного полного колебания.", vars: "t — время, N — число колебаний", unit: "с" },
+            { name: "Частота колебаний (1)", formula: "ν = N / t", category: "Колебания", desc: "Число колебаний в секунду.", vars: "N — число колебаний, t — время", unit: "Гц" },
+            { name: "Частота через период", formula: "ν = 1 / T", category: "Колебания", desc: "Взаимная обратная связь.", vars: "T — период", unit: "Гц" },
+            { name: "Скорость по окружности", formula: "v = (2 · π · R) / T", category: "Кинематика", desc: "Движение по окружности.", vars: "R — радиус, T — период", unit: "м/с" },
+            { name: "Угловая скорость", formula: "ω = 2 · π / T", category: "Кинематика", desc: "Угол поворота в секунду.", vars: "T — период", unit: "рад/с" },
+            { name: "Центростремительное ускорение (1)", formula: "v² / R", category: "Кинематика", desc: "Ускорение по окружности.", vars: "v — скорость, R — радиус", unit: "м/с²" },
+            { name: "Центростремительное ускорение (2)", formula: "a = ω² · R", category: "Кинематика", desc: "Через угловую скорость.", vars: "ω — угловая скорость, R — радиус", unit: "м/с²" },
+
+            // Силы и законы Ньютона
+            { name: "Второй закон Ньютона", formula: "F = m · a", category: "Динамика", desc: "Связь силы, массы и ускорения.", vars: "m — масса, a — ускорение", unit: "Н" },
+            { name: "Сила тяжести", formula: "F = m · g", category: "Динамика", desc: "Притяжение к Земле.", vars: "m — масса, g ≈ 9.8 м/с²", unit: "Н" },
+            { name: "Сила упругости (Закон Гука)", formula: "Fупр = k · x", category: "Динамика", desc: "Сила при деформации пружины.", vars: "k — жесткость, x — удлинение", unit: "Н" },
+            { name: "Сила трения скольжения", formula: "Fтр = μ · N", category: "Динамика", desc: "Трение о поверхность.", vars: "μ — коэффициент трения, N — сила реакции опоры", unit: "Н" },
+            { name: "Архимедова сила", formula: "F_А = ρ · g · V", category: "Гидростатика", desc: "Выталкивающая сила в жидкости/газе.", vars: "ρ — плотность жидкости, V — объем погруженной части", unit: "Н" },
+            { name: "Вес тела", formula: "P = m · g", category: "Динамика", desc: "Сила давления тела на опору.", vars: "m — масса, g — ускорение своб. падения", unit: "Н" },
+            { name: "Закон всемирного тяготения", formula: "F = (G · m₁ · m₂) / r²", category: "Динамика", desc: "Гравитационное притяжение тел.", vars: "G — гравитационная постоянная, r — расстояние", unit: "Н" },
+            { name: "Третий закон Ньютона", formula: "F₁₂ = −F₂₁", category: "Динамика", desc: "Силы взаимодействия равны по модулю.", vars: "F₁, F₂ — силы", unit: "Н" },
+            { name: "Основной закон динамики", formula: "ΣF = m · a", category: "Динамика", desc: "Равнодействующая всех сил.", vars: "m — масса, a — ускорение", unit: "Н" },
+            { name: "Давление твердых тел", formula: "p = F / S", category: "Гидростатика", desc: "Сила на единицу площади.", vars: "F — сила давления, S — площадь", unit: "Па" },
+            { name: "Сила давления", formula: "F = p · S", category: "Гидростатика", desc: "Давление на площадь.", vars: "p — давление, S — площадь", unit: "Н" },
+            { name: "Гидростатическое давление", formula: "p = ρ · g · h", category: "Гидростатика", desc: "Давление столба жидкости.", vars: "ρ — плотность, h — высота столба", unit: "Па" },
+            { name: "Полное давление", formula: "p = p₀ + ρ · g · h", category: "Гидростатика", desc: "С учетом атмосферного давления.", vars: "p₀ — атмосферное давление", unit: "Па" },
+            { name: "Закон Паскаля (Гидравлика)", formula: "F₁ / S₁ = F₂ / S₂", category: "Гидростатика", desc: "Равенство давлений в гидравлических машинах.", vars: "F — силы, S — площади поршней", unit: "—" },
+
+            // Работа, мощность и энергия
+            { name: "Механическая работа (1)", formula: "A = F · s", category: "Работа и Энергия", desc: "Работа постоянной силы при совпадении направлений.", vars: "F — сила, s — путь", unit: "Дж" },
+            { name: "Механическая работа (общая)", formula: "A = F · s · cos(α)", category: "Работа и Энергия", desc: "Работа под углом к перемещению.", vars: "α — угол между силой и перемещением", unit: "Дж" },
+            { name: "Мощность (1)", formula: "N = A / t", category: "Работа и Энергия", desc: "Быстрота выполнения работы.", vars: "A — работа, t — время", unit: "Вт" },
+            { name: "Мощность через скорость", formula: "N = F · v", category: "Работа и Энергия", desc: "Мощность при равномерном движении.", vars: "F — сила, v — скорость", unit: "Вт" },
+            { name: "Кинетическая энергия", formula: "Ek = (m · v²) / 2", category: "Работа и Энергия", desc: "Энергия движущегося тела.", vars: "m — масса, v — скорость", unit: "Дж" },
+            { name: "Потенциальная энергия в поле тяжести", formula: "Ep = m · g · h", category: "Работа и Энергия", desc: "Энергия тела на высоте.", vars: "m — масса, h — высота", unit: "Дж" },
+            { name: "Потенциальная энергия упругой пружины", formula: "E = (k · x²) / 2", category: "Работа и Энергия", desc: "Энергия деформированной пружины.", vars: "k — жесткость, x — деформация", unit: "Дж" },
+            { name: "Полная механическая энергия", formula: "E = Ek + Ep", category: "Работа и Энергия", desc: "Сумма энергий.", vars: "Ek, Ep — кинетическая и потенциальная", unit: "Дж" },
+            { name: "Коэффициент полезного действия (КПД)", formula: "η = (Aпол / Aзат) · 100%", category: "Работа и Энергия", desc: "Эффективность механизма.", vars: "Aпол — полезная работа, Aзат — затраченная", unit: "%" },
+            { name: "Момент силы", formula: "M = F · l", category: "Статика", desc: "Вращающий момент.", vars: "F — сила, l — плечо силы", unit: "Н·м" },
+            { name: "Правило моментов", formula: "F₁ · l₁ = F₂ · l₂", category: "Статика", desc: "Условие равновесия рычага.", vars: "F — силы, l — плечи", unit: "Н·м" },
+
+            // Молекулярная физика и МКТ
+            { name: "Количество вещества (через массу)", formula: "ν = m / M", category: "МКТ", desc: "Число моль вещества.", vars: "m — масса, M — молярная масса", unit: "моль" },
+            { name: "Число частиц", formula: "N = ν · N_A", category: "МКТ", desc: "Общее число молекул/атомов.", vars: "N_A — постоянная Авогадро", unit: "—" },
+            { name: "Масса одной молекулы", formula: "m₀ = m / N", category: "МКТ", desc: "Масса одной частицы.", vars: "m — масса, N — число частиц", unit: "кг" },
+            { name: "Молярная масса", formula: "M = m / ν", category: "МКТ", desc: "Масса одного моля.", vars: "m — масса, ν — количество вещества", unit: "кг/моль" },
+            { name: "Концентрация частиц", formula: "n = N / V", category: "МКТ", desc: "Число частиц в единице объема.", vars: "N — число частиц, V — объем", unit: "м⁻³" },
+            { name: "Связь шкалы Кельвина и Цельсия", formula: "T = t + 273", category: "МКТ", desc: "Перевод градусов в Кельвины.", vars: "t — температура в °C", unit: "К" },
+            { name: "Основное уравнение МКТ (1)", formula: "p = ⅓ · m₀ · n · v²ср", category: "МКТ", desc: "Давление газа через среднюю скорость.", vars: "n — концентрация, vср — средняя скорость", unit: "Па" },
+            { name: "Основное уравнение МКТ (2)", formula: "p = n · k · T", category: "МКТ", desc: "Давление через концентрацию и температуру.", vars: "k — постоянная Больцмана, T — температура", unit: "Па" },
+            { name: "Средняя кинетическая энергия теплового движения", formula: "Ek = (3 / 2) · k · T", category: "МКТ", desc: "Энергия хаотического движения молекул.", vars: "k — постоянная Больцмана, T — температура", unit: "Дж" },
+
+            // Термодинамика
+            { name: "Количество теплоты при нагревании/охлаждении", formula: "Q = c · m · ΔT", category: "Термодинамика", desc: "Теплота для изменения температуры.", vars: "c — удельная теплоемкость, ΔT — разность температур", unit: "Дж" },
+            { name: "Теплота плавления/кристаллизации", formula: "Q = λ · m", category: "Термодинамика", desc: "Теплота при фазовом переходе.", vars: "λ — удельная теплота плавления", unit: "Дж" },
+            { name: "Теплота парообразования/конденсации", formula: "Q = L · m", category: "Термодинамика", desc: "Теплота кипения/испарения.", vars: "L — удельная теплота парообразования", unit: "Дж" },
+            { name: "Теплота сгорания топлива", formula: "Q = q · m", category: "Термодинамика", desc: "Энергия от сгорания топлива.", vars: "q — удельная теплота сгорания", unit: "Дж" },
+            { name: "Уравнение теплового баланса", formula: "Qотд = Qпол", category: "Термодинамика", desc: "Закон сохранения энергии в тепловых процессах.", vars: "Qотд — отданная теплота, Qпол — полученная", unit: "Дж" },
+            { name: "Первый закон термодинамики", formula: "ΔU = Q + Aвнеш", category: "Термодинамика", desc: "Изменение внутренней энергии.", vars: "Q — теплота, Aвнеш — работа внешних сил", unit: "Дж" },
+            { name: "Работа газа в термодинамике", formula: "Q = ΔU + Aгаза", category: "Термодинамика", desc: "Передача тепла на работу газа и изменение энергии.", vars: "Aгаза — работа самого газа", unit: "Дж" },
+            { name: "Работа газа при изменении объема", formula: "A = p · ΔV", category: "Термодинамика", desc: "Работа под давлением.", vars: "p — давление, ΔV — изменение объема", unit: "Дж" },
+            { name: "КПД тепловой машины (1)", formula: "η = ((Q₁ − Q₂) / Q₁) · 100%", category: "Термодинамика", desc: "Через количества теплоты.", vars: "Q₁ — получено от нагревателя, Q₂ — отдано холодильнику", unit: "%" },
+            { name: "КПД идеального теплового двигателя (Карно)", formula: "η = 1 − (T₂ / T₁)", category: "Термодинамика", desc: "Максимальный КПД через температуры.", vars: "T₁, T₂ — температуры нагревателя и холодильника", unit: "—" },
+            { name: "Закон Бойля — Мариотта (изотермический)", formula: "p₁ · V₁ = p₂ · V₂", category: "МКТ", desc: "При постоянной температуре.", vars: "p — давление, V — объем", unit: "—" },
+            { name: "Закон Гей — Люссака (изобарный)", formula: "V₁ / T₁ = V₂ / T₂", category: "МКТ", desc: "При постоянном давлении.", vars: "V — объем, T — температура", unit: "—" },
+            { name: "Закон Шарля (изохорный)", formula: "p₁ / T₁ = p₂ / T₂", category: "МКТ", desc: "При постоянном объеме.", vars: "p — давление, T — температура", unit: "—" },
+            { name: "Уравнение Клапейрона", formula: "(p₁ · V₁) / T₁ = (p₂ · V₂) / T₂", category: "МКТ", desc: "Общее газовое состояние.", vars: "p, V, T — параметры газа", unit: "—" },
+            { name: "Уравнение Менделеева — Клапейрона", formula: "p · V = ν · R · T", category: "МКТ", desc: "Состояние идеального газа.", vars: "R — универсальная газовая постоянная", unit: "Дж" },
+
+            // Электричество
+            { name: "Сила тока", formula: "I = q / t", category: "Электричество", desc: "Заряд через сечение проводника в секунду.", vars: "q — заряд, t — время", unit: "А" },
+            { name: "Электрический заряд", formula: "q = I · t", category: "Электричество", desc: "Накопленный заряд.", vars: "I — ток, t — время", unit: "Кл" },
+            { name: "Напряженность электрического поля (1)", formula: "E = F / q", category: "Электростатика", desc: "Сила на единичный заряд.", vars: "F — сила, q — заряд", unit: "Н/Кл" },
+            { name: "Сила в электрическом поле", formula: "F = q · E", category: "Электростатика", desc: "Действие поля на заряд.", vars: "q — заряд, E — напряженность", unit: "Н" },
+            { name: "Закон Кулона", formula: "F = (k · |q₁ · q₂|) / r²", category: "Электростатика", desc: "Взаимодействие точечных зарядов.", vars: "k — постоянная Кулона, r — расстояние", unit: "Н" },
+            { name: "Напряжение", formula: "U = A / q", category: "Электричество", desc: "Работа по перемещению заряда.", vars: "A — работа, q — заряд", unit: "В" },
+            { name: "Закон Ома для участка цепи", formula: "I = U / R", category: "Электричество", desc: "Ток прямо пропорционален напряжению.", vars: "U — напряжение, R — сопротивление", unit: "А" },
+            { name: "Сопротивление проводника", formula: "R = (ρ · l) / S", category: "Электричество", desc: "Зависимость от материала и размеров.", vars: "ρ — удельное сопротивление, l — длина, S — площадь", unit: "Ом" },
+            { name: "Последовательное соединение (сопротивление)", formula: "R = R₁ + R₂", category: "Электричество", desc: "Сумма сопротивлений.", vars: "R₁, R₂ — сопротивления", unit: "Ом" },
+            { name: "Параллельное соединение (сопротивление)", formula: "1 / R = 1 / R₁ + 1 / R₂", category: "Электричество", desc: "Обратное суммирование.", vars: "R₁, R₂ — сопротивления", unit: "Ом" },
+            { name: "Работа тока", formula: "A = U · I · t", category: "Электричество", desc: "Работа электрического поля.", vars: "U — напряжение, I — ток, t — время", unit: "Дж" },
+            { name: "Мощность тока", formula: "P = U · I", category: "Электричество", desc: "Электрическая мощность.", vars: "U — напряжение, I — ток", unit: "Вт" },
+            { name: "Закон Джоуля — Ленца", formula: "Q = I² · R · t", category: "Электричество", desc: "Теплота выделяемая током в проводнике.", vars: "I — ток, R — сопротивление, t — время", unit: "Дж" },
+            { name: "Закон Ома для полной цепи", formula: "I = ε / (R + r)", category: "Электричество", desc: "С учетом внутреннего сопротивления источника.", vars: "ε — ЭДС, r — внутреннее сопротивление", unit: "А" },
+
+            // Магнетизм и Электромагнитная индукция
+            { name: "Сила Ампера", formula: "F = B · I · l · sin(α)", category: "Магнетизм", desc: "Сила на проводник с током в магнитном поле.", vars: "B — индукция магнитного поля, I — ток, l — длина", unit: "Н" },
+            { name: "Сила Лоренца", formula: "F = |q| · v · B · sin(α)", category: "Магнетизм", desc: "Действие поля на движущийся заряд.", vars: "q — заряд, v — скорость, B — индукция", unit: "Н" },
+            { name: "Магнитный поток", formula: "Φ = B · S · cos(α)", category: "Магнетизм", desc: "Поток векторного поля через площадку.", vars: "B — индукция, S — площадь", unit: "Вб" },
+            { name: "ЭДС индукции (Фарадей)", formula: "ε = −(ΔΦ / Δt)", category: "Магнетизм", desc: "Скорость изменения магнитного потока.", vars: "ΔΦ — изменение потока, Δt — время", unit: "В" },
+            { name: "Энергия магнитного поля катушки", formula: "W = (L · I²) / 2", category: "Магнетизм", desc: "Энергия тока в индуктивности.", vars: "L — индуктивность, I — ток", unit: "Дж" },
+
+            // Оптика
+            { name: "Закон отражения света", formula: "α = β", category: "Оптика", desc: "Угол падения равен углу отражения.", vars: "α — угол падения, β — угол отражения", unit: "°" },
+            { name: "Закон преломления света (Снеллиуса)", formula: "n₁ · sin(α) = n₂ · sin(β)", category: "Оптика", desc: "Преломление на границе сред.", vars: "n₁, n₂ — показатели преломления", unit: "—" },
+            { name: "Абсолютный показатель преломления", formula: "n = c / v", category: "Оптика", desc: "Скорость света в среде.", vars: "c — скорость света, v — скорость в среде", unit: "—" },
+            { name: "Оптическая сила линзы", formula: "D = 1 / F", category: "Оптика", desc: "Обратное фокусное расстояние.", vars: "F — фокусное расстояние", unit: "дптр" },
+            { name: "Формула тонкой линзы", formula: "1 / F = 1 / a + 1 / b", category: "Оптика", desc: "Связь расстояний до предмета и изображения.", vars: "a — до предмета, b — до изображения", unit: "м⁻¹" },
+
+            // Квантовая физика и атом
+            { name: "Энергия фотона", formula: "E = h · ν", category: "Квантовая физика", desc: "Энергия света определенной частоты.", vars: "h — постоянная Планка, ν — частота", unit: "Дж" },
+            { name: "Связь энергии и длины волны", formula: "E = (h · c) / λ", category: "Квантовая физика", desc: "Через длину волны.", vars: "c — скорость света, λ — длина волны", unit: "Дж" },
+            { name: "Уравнение Эйнштейна для фотоэффекта", formula: "h · ν = Aвых + Ek", category: "Квантовая физика", desc: "Энергия фотона идет на работу выхода и кинетическую энергию электрона.", vars: "Aвых — работа выхода, Ek — кинет. энергия", unit: "Дж" },
+            { name: "Взаимосвязь массы и энергии (СТО)", formula: "E = m · c²", category: "Квантовая физика", desc: "Энергия покоя тела.", vars: "m — масса, c — скорость света", unit: "Дж" },
+            { name: "Закон радиоактивного распада", formula: "N = N₀ · 2^(−t / T½)", category: "Ядерная физика", desc: "Убывание числа нераспавшихся ядер.", vars: "N₀ — нач. число ядер, T½ — период полураспада", unit: "—" }
+        ];
+
+        function renderFormulas(list) {
+            const container = document.getElementById('formulas-grid');
+            if (!container) return;
+            container.innerHTML = '';
+            list.forEach(item => {
+                container.innerHTML += `
+                    <div class="bg-dark-800 border border-dark-600 p-4 md:p-6 rounded-2xl flex flex-col justify-between hover:border-primary/40 transition-all">
+                        <div>
+                            <div class="flex items-center justify-between mb-3 gap-2">
+                                <span class="text-xs bg-dark-700 text-primary-light px-2.5 py-1 rounded-lg border border-dark-600">${T(item.category)}</span>
+                                <span class="text-xs text-gray-400 font-mono shrink-0">${T(item.unit)}</span>
+                            </div>
+                            <h4 class="text-base md:text-lg font-bold text-white mb-1 break-words">${T(item.name)}</h4>
+                            <div class="my-3 p-3 bg-dark-900 rounded-xl border border-dark-700 text-center text-accent font-mono text-sm md:text-base font-bold break-words">
+                                ${trFormula(item.formula)}
+                            </div>
+                            <p class="text-xs text-gray-300 leading-relaxed">${T(item.desc)}</p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-dark-700 text-[11px] text-gray-400 font-mono">
+                            ${T(item.vars)}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        window.filterFormulas = function() {
+            const query = document.getElementById('formula-search').value.toLowerCase();
+            const filtered = formulasDB.filter(f =>
+                T(f.name).toLowerCase().includes(query) ||
+                T(f.category).toLowerCase().includes(query) ||
+                f.formula.toLowerCase().includes(query) ||
+                f.name.toLowerCase().includes(query) ||
+                f.category.toLowerCase().includes(query)
+            );
+            renderFormulas(filtered);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderFormulas(formulasDB);
+            renderCalculators(calcsDB);
+            startQuiz();
+        });
+
+        // ===== КАЛЬКУЛЯТОРЫ ДЛЯ КАЖДОЙ ФОРМУЛЫ СПРАВОЧНИКА =====
+        // ins: [ключ, подпись, значение по умолчению, единица]
+        // out: [подпись результата, единица]
+        // f: функция расчёта (i — объект со значениями полей ins)
+        const calcSpecs = {
+            "Скорость (через путь и время)": { ins: [["S", "Путь S", 300, "м"], ["t", "Время t", 15, "с"]], out: ["Скорость v", "м/с"], f: i => i.S / i.t },
+            "Путь (через скорость и время)": { ins: [["v", "Скорость v", 20, "м/с"], ["t", "Время t", 15, "с"]], out: ["Путь s", "м"], f: i => i.v * i.t },
+            "Время движения": { ins: [["s", "Путь s", 300, "м"], ["v", "Скорость v", 20, "м/с"]], out: ["Время t", "с"], f: i => i.s / i.v },
+            "Средняя скорость": { ins: [["s", "Общий путь s", 600, "м"], ["t", "Общее время t", 60, "с"]], out: ["Средняя скорость", "м/с"], f: i => i.s / i.t },
+            "Плотность вещества": { ins: [["m", "Масса m", 1, "кг"], ["V", "Объем V", 0.001, "м³"]], out: ["Плотность ρ", "кг/м³"], f: i => i.m / i.V },
+            "Масса через плотность": { ins: [["rho", "Плотность ρ", 1000, "кг/м³"], ["V", "Объем V", 0.002, "м³"]], out: ["Масса m", "кг"], f: i => i.rho * i.V },
+            "Объем через плотность": { ins: [["m", "Масса m", 2, "кг"], ["rho", "Плотность ρ", 1000, "кг/м³"]], out: ["Объем V", "м³"], f: i => i.m / i.rho },
+            "Ускорение": { ins: [["v", "Конечная скорость v", 30, "м/с"], ["v0", "Начальная скорость v₀", 10, "м/с"], ["t", "Время t", 5, "с"]], out: ["Ускорение a", "м/с²"], f: i => (i.v - i.v0) / i.t },
+            "Скорость при равноускоренном движении": { ins: [["v0", "Начальная скорость v₀", 10, "м/с"], ["a", "Ускорение a", 4, "м/с²"], ["t", "Время t", 5, "с"]], out: ["Скорость v", "м/с"], f: i => i.v0 + i.a * i.t },
+            "Перемещение при равноускоренном движении": { ins: [["v0", "Начальная скорость v₀", 10, "м/с"], ["a", "Ускорение a", 4, "м/с²"], ["t", "Время t", 5, "с"]], out: ["Перемещение s", "м"], f: i => i.v0 * i.t + i.a * i.t * i.t / 2 },
+            "Формула без времени": { ins: [["v", "Конечная скорость v", 30, "м/с"], ["v0", "Начальная скорость v₀", 10, "м/с"], ["a", "Ускорение a", 4, "м/с²"]], out: ["Путь s", "м"], f: i => (i.v * i.v - i.v0 * i.v0) / (2 * i.a) },
+            "Перемещение через среднюю скорость": { ins: [["v0", "Начальная скорость v₀", 10, "м/с"], ["v", "Конечная скорость v", 30, "м/с"], ["t", "Время t", 5, "с"]], out: ["Путь s", "м"], f: i => (i.v0 + i.v) * i.t / 2 },
+            "Свободное падение (скорость)": { ins: [["t", "Время t", 3, "с"], ["g", "Ускорение свободного падения g", 9.8, "м/с²"]], out: ["Скорость v", "м/с"], f: i => i.g * i.t },
+            "Свободное падение (высота)": { ins: [["t", "Время t", 2, "с"], ["g", "Ускорение свободного падения g", 9.8, "м/с²"]], out: ["Высота h", "м"], f: i => i.g * i.t * i.t / 2 },
+            "Свободное падение (без времени)": { ins: [["h", "Высота h", 20, "м"], ["g", "Ускорение свободного падения g", 9.8, "м/с²"]], out: ["Скорость v", "м/с"], f: i => Math.sqrt(2 * i.g * i.h) },
+            "Период и частота (1)": { ins: [["t", "Время t", 10, "с"], ["N", "Число колебаний N", 20, ""]], out: ["Период T", "с"], f: i => i.t / i.N },
+            "Частота колебаний (1)": { ins: [["N", "Число колебаний N", 20, ""], ["t", "Время t", 10, "с"]], out: ["Частота ν", "Гц"], f: i => i.N / i.t },
+            "Частота через период": { ins: [["T", "Период T", 0.5, "с"]], out: ["Частота ν", "Гц"], f: i => 1 / i.T },
+            "Скорость по окружности": { ins: [["R", "Радиус R", 0.5, "м"], ["T", "Период T", 2, "с"]], out: ["Скорость v", "м/с"], f: i => 2 * Math.PI * i.R / i.T },
+            "Угловая скорость": { ins: [["T", "Период T", 2, "с"]], out: ["Угловая скорость ω", "рад/с"], f: i => 2 * Math.PI / i.T },
+            "Центростремительное ускорение (1)": { ins: [["v", "Скорость v", 10, "м/с"], ["R", "Радиус R", 5, "м"]], out: ["Ускорение a", "м/с²"], f: i => i.v * i.v / i.R },
+            "Центростремительное ускорение (2)": { ins: [["omega", "Угловая скорость ω", 4, "рад/с"], ["R", "Радиус R", 2, "м"]], out: ["Ускорение a", "м/с²"], f: i => i.omega * i.omega * i.R },
+            "Второй закон Ньютона": { ins: [["m", "Масса m", 5, "кг"], ["a", "Ускорение a", 10, "м/с²"]], out: ["Сила F", "Н"], f: i => i.m * i.a },
+            "Сила тяжести": { ins: [["m", "Масса m", 5, "кг"], ["g", "Ускорение свободного падения g", 9.8, "м/с²"]], out: ["Сила F", "Н"], f: i => i.m * i.g },
+            "Сила упругости (Закон Гука)": { ins: [["k", "Жесткость пружины k", 100, "Н/м"], ["x", "Удлинение x", 0.2, "м"]], out: ["Сила Fупр", "Н"], f: i => i.k * i.x },
+            "Сила трения скольжения": { ins: [["mu", "Коэффициент трения μ", 0.3, ""], ["N", "Сила реакции опоры N", 100, "Н"]], out: ["Сила Fтр", "Н"], f: i => i.mu * i.N },
+            "Архимедова сила": { ins: [["rho", "Плотность жидкости ρ", 1000, "кг/м³"], ["g", "Ускорение свободного падения g", 9.8, "м/с²"], ["V", "Объем погруженной части V", 0.001, "м³"]], out: ["Сила FА", "Н"], f: i => i.rho * i.g * i.V },
+            "Вес тела": { ins: [["m", "Масса m", 5, "кг"], ["g", "Ускорение свободного падения g", 9.8, "м/с²"]], out: ["Вес P", "Н"], f: i => i.m * i.g },
+            "Закон всемирного тяготения": { ins: [["G", "Гравитационная постоянная G", 6.67e-11, "Н·м²/кг²"], ["m1", "Первая масса m₁", 5.97e24, "кг"], ["m2", "Вторая масса m₂", 7.35e22, "кг"], ["r", "Расстояние r", 3.84e8, "м"]], out: ["Сила F", "Н"], f: i => i.G * i.m1 * i.m2 / (i.r * i.r) },
+            "Третий закон Ньютона": { ins: [["F1", "Сила F₁₂", 50, "Н"]], out: ["Сила F₂₁", "Н"], f: i => -i.F1 },
+            "Основной закон динамики": { ins: [["F", "Равнодействующая сила ΣF", 50, "Н"], ["m", "Масса m", 5, "кг"]], out: ["Ускорение a", "м/с²"], f: i => i.F / i.m },
+            "Давление твердых тел": { ins: [["F", "Сила давления F", 100, "Н"], ["S", "Площадь S", 0.5, "м²"]], out: ["Давление p", "Па"], f: i => i.F / i.S },
+            "Сила давления": { ins: [["p", "Давление p", 200, "Па"], ["S", "Площадь S", 0.5, "м²"]], out: ["Сила F", "Н"], f: i => i.p * i.S },
+            "Гидростатическое давление": { ins: [["rho", "Плотность жидкости ρ", 1000, "кг/м³"], ["g", "Ускорение свободного падения g", 9.8, "м/с²"], ["h", "Высота столба h", 10, "м"]], out: ["Давление p", "Па"], f: i => i.rho * i.g * i.h },
+            "Полное давление": { ins: [["p0", "Атмосферное давление p₀", 101325, "Па"], ["rho", "Плотность жидкости ρ", 1000, "кг/м³"], ["g", "Ускорение свободного падения g", 9.8, "м/с²"], ["h", "Высота столба h", 10, "м"]], out: ["Давление p", "Па"], f: i => i.p0 + i.rho * i.g * i.h },
+            "Закон Паскаля (Гидравлика)": { ins: [["F1", "Сила F₁", 100, "Н"], ["S1", "Площадь поршня S₁", 0.01, "м²"], ["S2", "Площадь поршня S₂", 0.05, "м²"]], out: ["Сила F₂", "Н"], f: i => i.F1 * i.S2 / i.S1 },
+            "Механическая работа (1)": { ins: [["F", "Сила F", 50, "Н"], ["s", "Путь s", 10, "м"]], out: ["Работа A", "Дж"], f: i => i.F * i.s },
+            "Механическая работа (общая)": { ins: [["F", "Сила F", 50, "Н"], ["s", "Путь s", 10, "м"], ["alpha", "Угол α", 60, "°"]], out: ["Работа A", "Дж"], f: i => i.F * i.s * Math.cos(i.alpha * Math.PI / 180) },
+            "Мощность (1)": { ins: [["A", "Работа A", 500, "Дж"], ["t", "Время t", 10, "с"]], out: ["Мощность N", "Вт"], f: i => i.A / i.t },
+            "Мощность через скорость": { ins: [["F", "Сила F", 50, "Н"], ["v", "Скорость v", 2, "м/с"]], out: ["Мощность N", "Вт"], f: i => i.F * i.v },
+            "Кинетическая энергия": { ins: [["m", "Масса m", 2, "кг"], ["v", "Скорость v", 10, "м/с"]], out: ["Энергия Ek", "Дж"], f: i => i.m * i.v * i.v / 2 },
+            "Потенциальная энергия в поле тяжести": { ins: [["m", "Масса m", 2, "кг"], ["g", "Ускорение свободного падения g", 9.8, "м/с²"], ["h", "Высота h", 10, "м"]], out: ["Энергия Ep", "Дж"], f: i => i.m * i.g * i.h },
+            "Потенциальная энергия упругой пружины": { ins: [["k", "Жесткость пружины k", 100, "Н/м"], ["x", "Деформация x", 0.2, "м"]], out: ["Энергия пружины", "Дж"], f: i => i.k * i.x * i.x / 2 },
+            "Полная механическая энергия": { ins: [["Ek", "Кинетическая энергия Ek", 100, "Дж"], ["Ep", "Потенциальная энергия Ep", 50, "Дж"]], out: ["Полная энергия E", "Дж"], f: i => i.Ek + i.Ep },
+            "Коэффициент полезного действия (КПД)": { ins: [["Ap", "Полезная работа Aпол", 800, "Дж"], ["Az", "Затраченная работа Aзат", 1000, "Дж"]], out: ["КПД η", "%"], f: i => i.Ap / i.Az * 100 },
+            "Момент силы": { ins: [["F", "Сила F", 20, "Н"], ["l", "Плечо силы l", 0.5, "м"]], out: ["Момент M", "Н·м"], f: i => i.F * i.l },
+            "Правило моментов": { ins: [["F1", "Сила F₁", 100, "Н"], ["l1", "Плечо l₁", 0.2, "м"], ["l2", "Плечо l₂", 1, "м"]], out: ["Сила F₂", "Н"], f: i => i.F1 * i.l1 / i.l2 },
+            "Количество вещества (через массу)": { ins: [["m", "Масса m", 4, "г"], ["M", "Молярная масса M", 32, "г/моль"]], out: ["Количество вещества ν", "моль"], f: i => i.m / i.M },
+            "Число частиц": { ins: [["nu", "Количество вещества ν", 0.1, "моль"]], out: ["Число частиц N", "—"], f: i => i.nu * 6.02e23 },
+            "Масса одной молекулы": { ins: [["m", "Масса m", 0.032, "кг"], ["N", "Число частиц N", 6.02e23, ""]], out: ["Масса частицы m₀", "кг"], f: i => i.m / i.N },
+            "Молярная масса": { ins: [["m", "Масса m", 32, "г"], ["nu", "Количество вещества ν", 1, "моль"]], out: ["Молярная масса M", "г/моль"], f: i => i.m / i.nu },
+            "Концентрация частиц": { ins: [["N", "Число частиц N", 6.02e23, ""], ["V", "Объем V", 0.01, "м³"]], out: ["Концентрация n", "м⁻³"], f: i => i.N / i.V },
+            "Связь шкалы Кельвина и Цельсия": { ins: [["t", "Температура t", 27, "°C"]], out: ["Температура T", "К"], f: i => i.t + 273 },
+            "Основное уравнение МКТ (1)": { ins: [["m0", "Масса молекулы m₀", 4.65e-26, "кг"], ["n", "Концентрация n", 2.7e25, "м⁻³"], ["v", "Средняя скорость vср", 500, "м/с"]], out: ["Давление p", "Па"], f: i => i.m0 * i.n * i.v * i.v / 3 },
+            "Основное уравнение МКТ (2)": { ins: [["n", "Концентрация n", 2.7e25, "м⁻³"], ["k", "Постоянная Больцмана k", 1.38e-23, "Дж/К"], ["T", "Температура T", 300, "К"]], out: ["Давление p", "Па"], f: i => i.n * i.k * i.T },
+            "Средняя кинетическая энергия теплового движения": { ins: [["T", "Температура T", 300, "К"], ["k", "Постоянная Больцмана k", 1.38e-23, "Дж/К"]], out: ["Энергия Ek", "Дж"], f: i => 1.5 * i.k * i.T },
+            "Количество теплоты при нагревании/охлаждении": { ins: [["c", "Удельная теплоемкость c", 4200, "Дж/(кг·°C)"], ["m", "Масса m", 2, "кг"], ["dT", "Разность температур ΔT", 50, "°C"]], out: ["Теплота Q", "Дж"], f: i => i.c * i.m * i.dT },
+            "Теплота плавления/кристаллизации": { ins: [["lambda", "Удельная теплота плавления λ", 334000, "Дж/кг"], ["m", "Масса m", 2, "кг"]], out: ["Теплота Q", "Дж"], f: i => i.lambda * i.m },
+            "Теплота парообразования/конденсации": { ins: [["L", "Удельная теплота парообразования L", 2260000, "Дж/кг"], ["m", "Масса m", 1, "кг"]], out: ["Теплота Q", "Дж"], f: i => i.L * i.m },
+            "Теплота сгорания топлива": { ins: [["q", "Удельная теплота сгорания q", 46000000, "Дж/кг"], ["m", "Масса топлива m", 1, "кг"]], out: ["Теплота Q", "Дж"], f: i => i.q * i.m },
+            "Уравнение теплового баланса": { ins: [["Qo", "Отданная теплота Qотд", 100000, "Дж"]], out: ["Полученная теплота Qпол", "Дж"], f: i => i.Qo },
+            "Первый закон термодинамики": { ins: [["Q", "Теплота Q", 1000, "Дж"], ["Aw", "Работа внешних сил Aвнеш", -200, "Дж"]], out: ["Изменение энергии ΔU", "Дж"], f: i => i.Q + i.Aw },
+            "Работа газа в термодинамике": { ins: [["dU", "Изменение энергии ΔU", 800, "Дж"], ["Ag", "Работа газа Aгаза", 200, "Дж"]], out: ["Теплота Q", "Дж"], f: i => i.dU + i.Ag },
+            "Работа газа при изменении объема": { ins: [["p", "Давление p", 100000, "Па"], ["dV", "Изменение объема ΔV", 0.01, "м³"]], out: ["Работа A", "Дж"], f: i => i.p * i.dV },
+            "КПД тепловой машины (1)": { ins: [["Q1", "Теплота от нагревателя Q₁", 1000, "Дж"], ["Q2", "Теплота холодильнику Q₂", 400, "Дж"]], out: ["КПД η", "%"], f: i => (i.Q1 - i.Q2) / i.Q1 * 100 },
+            "КПД идеального теплового двигателя (Карно)": { ins: [["T1", "Температура нагревателя T₁", 500, "К"], ["T2", "Температура холодильника T₂", 300, "К"]], out: ["КПД η", "—"], f: i => 1 - i.T2 / i.T1 },
+            "Закон Бойля — Мариотта (изотермический)": { ins: [["p1", "Давление p₁", 100000, "Па"], ["V1", "Объем V₁", 0.01, "м³"], ["p2", "Давление p₂", 200000, "Па"]], out: ["Объем V₂", "м³"], f: i => i.p1 * i.V1 / i.p2 },
+            "Закон Гей — Люссака (изобарный)": { ins: [["V1", "Объем V₁", 0.01, "м³"], ["T1", "Температура T₁", 300, "К"], ["T2", "Температура T₂", 600, "К"]], out: ["Объем V₂", "м³"], f: i => i.V1 * i.T2 / i.T1 },
+            "Закон Шарля (изохорный)": { ins: [["p1", "Давление p₁", 100000, "Па"], ["T1", "Температура T₁", 300, "К"], ["T2", "Температура T₂", 600, "К"]], out: ["Давление p₂", "Па"], f: i => i.p1 * i.T2 / i.T1 },
+            "Уравнение Клапейрона": { ins: [["p1", "Давление p₁", 100000, "Па"], ["V1", "Объем V₁", 0.01, "м³"], ["T1", "Температура T₁", 300, "К"], ["p2", "Давление p₂", 100000, "Па"], ["T2", "Температура T₂", 600, "К"]], out: ["Объем V₂", "м³"], f: i => i.p1 * i.V1 * i.T2 / (i.T1 * i.p2) },
+            "Уравнение Менделеева — Клапейрона": { ins: [["nu", "Количество вещества ν", 1, "моль"], ["T", "Температура T", 300, "К"], ["R", "Газовая постоянная R", 8.314, "Дж/(моль·К)"]], out: ["Произведение p·V", "Дж"], f: i => i.nu * i.R * i.T },
+            "Сила тока": { ins: [["q", "Электрический заряд q", 100, "Кл"], ["t", "Время t", 20, "с"]], out: ["Сила тока I", "А"], f: i => i.q / i.t },
+            "Электрический заряд": { ins: [["I", "Сила тока I", 5, "А"], ["t", "Время t", 20, "с"]], out: ["Заряд q", "Кл"], f: i => i.I * i.t },
+            "Напряженность электрического поля (1)": { ins: [["F", "Сила F", 10, "Н"], ["q", "Заряд q", 0.001, "Кл"]], out: ["Напряженность E", "Н/Кл"], f: i => i.F / i.q },
+            "Сила в электрическом поле": { ins: [["q", "Заряд q", 0.001, "Кл"], ["E", "Напряженность E", 10000, "Н/Кл"]], out: ["Сила F", "Н"], f: i => i.q * i.E },
+            "Закон Кулона": { ins: [["k", "Постоянная Кулона k", 9e9, "Н·м²/Кл²"], ["q1", "Заряд q₁", 1e-6, "Кл"], ["q2", "Заряд q₂", 1e-6, "Кл"], ["r", "Расстояние r", 0.1, "м"]], out: ["Сила F", "Н"], f: i => i.k * Math.abs(i.q1 * i.q2) / (i.r * i.r) },
+            "Напряжение": { ins: [["A", "Работа A", 100, "Дж"], ["q", "Заряд q", 10, "Кл"]], out: ["Напряжение U", "В"], f: i => i.A / i.q },
+            "Закон Ома для участка цепи": { ins: [["U", "Напряжение U", 220, "В"], ["R", "Сопротивление R", 44, "Ом"]], out: ["Сила тока I", "А"], f: i => i.U / i.R },
+            "Сопротивление проводника": { ins: [["rho", "Удельное сопротивление ρ", 1.7e-8, "Ом·м"], ["l", "Длина проводника l", 1, "м"], ["S", "Площадь сечения S", 1e-6, "м²"]], out: ["Сопротивление R", "Ом"], f: i => i.rho * i.l / i.S },
+            "Последовательное соединение (сопротивление)": { ins: [["R1", "Сопротивление R₁", 10, "Ом"], ["R2", "Сопротивление R₂", 20, "Ом"]], out: ["Сопротивление R", "Ом"], f: i => i.R1 + i.R2 },
+            "Параллельное соединение (сопротивление)": { ins: [["R1", "Сопротивление R₁", 10, "Ом"], ["R2", "Сопротивление R₂", 20, "Ом"]], out: ["Сопротивление R", "Ом"], f: i => (i.R1 * i.R2) / (i.R1 + i.R2) },
+            "Работа тока": { ins: [["U", "Напряжение U", 220, "В"], ["I", "Сила тока I", 5, "А"], ["t", "Время t", 10, "с"]], out: ["Работа A", "Дж"], f: i => i.U * i.I * i.t },
+            "Мощность тока": { ins: [["U", "Напряжение U", 220, "В"], ["I", "Сила тока I", 5, "А"]], out: ["Мощность P", "Вт"], f: i => i.U * i.I },
+            "Закон Джоуля — Ленца": { ins: [["I", "Сила тока I", 5, "А"], ["R", "Сопротивление R", 10, "Ом"], ["t", "Время t", 10, "с"]], out: ["Теплота Q", "Дж"], f: i => i.I * i.I * i.R * i.t },
+            "Закон Ома для полной цепи": { ins: [["eps", "ЭДС источника ε", 12, "В"], ["R", "Внешнее сопротивление R", 5, "Ом"], ["r", "Внутреннее сопротивление r", 1, "Ом"]], out: ["Сила тока I", "А"], f: i => i.eps / (i.R + i.r) },
+            "Сила Ампера": { ins: [["B", "Индукция поля B", 0.5, "Тл"], ["I", "Сила тока I", 10, "А"], ["l", "Длина проводника l", 0.2, "м"], ["alpha", "Угол α", 90, "°"]], out: ["Сила F", "Н"], f: i => i.B * i.I * i.l * Math.sin(i.alpha * Math.PI / 180) },
+            "Сила Лоренца": { ins: [["q", "Заряд q", 1.6e-19, "Кл"], ["v", "Скорость v", 1000000, "м/с"], ["B", "Индукция поля B", 0.1, "Тл"], ["alpha", "Угол α", 90, "°"]], out: ["Сила F", "Н"], f: i => Math.abs(i.q) * i.v * i.B * Math.sin(i.alpha * Math.PI / 180) },
+            "Магнитный поток": { ins: [["B", "Индукция поля B", 0.5, "Тл"], ["S", "Площадь S", 0.02, "м²"], ["alpha", "Угол α", 0, "°"]], out: ["Магнитный поток Φ", "Вб"], f: i => i.B * i.S * Math.cos(i.alpha * Math.PI / 180) },
+            "ЭДС индукции (Фарадей)": { ins: [["dPhi", "Изменение потока ΔΦ", 0.01, "Вб"], ["dt", "Время Δt", 0.1, "с"]], out: ["ЭДС ε", "В"], f: i => -i.dPhi / i.dt },
+            "Энергия магнитного поля катушки": { ins: [["L", "Индуктивность L", 0.1, "Гн"], ["I", "Сила тока I", 10, "А"]], out: ["Энергия W", "Дж"], f: i => i.L * i.I * i.I / 2 },
+            "Закон отражения света": { ins: [["alpha", "Угол падения α", 35, "°"]], out: ["Угол отражения β", "°"], f: i => i.alpha },
+            "Закон преломления света (Снеллиуса)": { ins: [["n1", "Показатель преломления n₁", 1, ""], ["alpha", "Угол падения α", 30, "°"], ["n2", "Показатель преломления n₂", 1.5, ""]], out: ["Угол преломления β", "°"], f: i => Math.asin(i.n1 * Math.sin(i.alpha * Math.PI / 180) / i.n2) * 180 / Math.PI },
+            "Абсолютный показатель преломления": { ins: [["c", "Скорость света c", 300000000, "м/с"], ["v", "Скорость в среде v", 200000000, "м/с"]], out: ["Показатель преломления n", "—"], f: i => i.c / i.v },
+            "Оптическая сила линзы": { ins: [["F", "Фокусное расстояние F", 0.5, "м"]], out: ["Оптическая сила D", "дптр"], f: i => 1 / i.F },
+            "Формула тонкой линзы": { ins: [["F", "Фокусное расстояние F", 0.2, "м"], ["a", "Расстояние до предмета a", 1, "м"]], out: ["Расстояние до изображения b", "м"], f: i => 1 / (1 / i.F - 1 / i.a) },
+            "Энергия фотона": { ins: [["nu", "Частота ν", 5e14, "Гц"], ["h", "Постоянная Планка h", 6.63e-34, "Дж·с"]], out: ["Энергия E", "Дж"], f: i => i.h * i.nu },
+            "Связь энергии и длины волны": { ins: [["h", "Постоянная Планка h", 6.63e-34, "Дж·с"], ["c", "Скорость света c", 3e8, "м/с"], ["lambda", "Длина волны λ", 5e-7, "м"]], out: ["Энергия E", "Дж"], f: i => i.h * i.c / i.lambda },
+            "Уравнение Эйнштейна для фотоэффекта": { ins: [["nu", "Частота ν", 1e15, "Гц"], ["Av", "Работа выхода Aвых", 3e-19, "Дж"]], out: ["Кинетическая энергия Ek", "Дж"], f: i => 6.63e-34 * i.nu - i.Av },
+            "Взаимосвязь массы и энергии (СТО)": { ins: [["m", "Масса m", 1, "кг"], ["c", "Скорость света c", 300000000, "м/с"]], out: ["Энергия E", "Дж"], f: i => i.m * i.c * i.c },
+            "Закон радиоактивного распада": { ins: [["N0", "Начальное число ядер N₀", 1000, ""], ["t", "Время t", 10, "лет"], ["Th", "Период полураспада T½", 5, "лет"]], out: ["Оставшееся число ядер N", "—"], f: i => i.N0 * Math.pow(2, -i.t / i.Th) }
+        };
+
+        // Калькуляторы строятся по справочнику: одна формула — один калькулятор
+        const calcsDB = formulasDB.map((f, idx) => {
+            const s = calcSpecs[f.name];
+            return s ? { idx: idx, name: f.name, formula: f.formula, category: f.category, ins: s.ins, out: s.out, f: s.f } : null;
+        }).filter(Boolean);
+
+        function renderCalculators(list) {
+            const grid = document.getElementById('calculators-grid');
+            if (!grid) return;
+            grid.innerHTML = list.map(c => {
+                const cols = c.ins.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1';
+                const inputs = c.ins.map(inp => `
+                    <div>
+                        <label class="text-xs text-gray-400 block mb-1">${T(inp[1])}${inp[3] ? ' (' + T(inp[3]) + ')' : ''}</label>
+                        <input type="text" id="calcin-${c.idx}-${inp[0]}" value="${inp[2]}" class="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2 text-sm text-gray-100 focus:border-primary">
+                    </div>`).join('');
+                return `
+                <div class="bg-dark-800 border border-dark-600 p-4 md:p-6 rounded-2xl shadow-xl space-y-4 hover:border-primary/40 transition-all">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center font-bold shrink-0"><i class="fa-solid fa-calculator"></i></div>
+                        <div class="min-w-0">
+                            <span class="inline-block text-[11px] bg-dark-700 text-primary-light px-2 py-0.5 rounded-md border border-dark-600 mb-1">${T(c.category)}</span>
+                            <h4 class="font-bold text-white text-sm leading-snug">${T(c.name)}</h4>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-dark-900 rounded-xl border border-dark-700 text-center text-accent font-mono text-sm font-bold break-words">${trFormula(c.formula)}</div>
+                    <div class="space-y-3">
+                        <div class="grid ${cols} gap-3">${inputs}</div>
+                        <button onclick="runCalc(${c.idx})" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 rounded-xl transition-all shadow-md">${pick('Рассчитать ', 'Calculate ')}${T(c.out[0])}</button>
+                        <div id="calcres-${c.idx}" class="p-3 bg-dark-900 rounded-xl border border-dark-600 text-sm text-center font-semibold text-emerald-400">${pick('Результат: ', 'Result: ')}—</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // Форматирование числового результата
+        function fmtResult(x) {
+            if (typeof x !== 'number' || Number.isNaN(x)) return '—';
+            if (!isFinite(x)) return '∞';
+            if (x === 0) return '0';
+            const ax = Math.abs(x);
+            if (ax >= 1e7 || ax < 1e-4) return x.toExponential(3);
+            return String(parseFloat(x.toPrecision(7)));
+        }
+
+        window.runCalc = function(idx) {
+            const c = calcsDB.find(x => x.idx === idx);
+            if (!c) return;
+            const resEl = document.getElementById(`calcres-${idx}`);
+            const vals = {};
+            for (const inp of c.ins) {
+                const el = document.getElementById(`calcin-${idx}-${inp[0]}`);
+                const raw = (el ? el.value : '').toString().trim().replace(',', '.');
+                const num = parseFloat(raw);
+                if (!isFinite(num)) {
+                    if (resEl) resEl.innerText = pick('Ошибка: введите число в поле «', 'Error: enter a number in the field "') + T(inp[1]) + pick('»', '"');
+                    return;
+                }
+                vals[inp[0]] = num;
+            }
+            let res;
+            try { res = c.f(vals); } catch (e) { res = NaN; }
+            if (typeof res !== 'number' || Number.isNaN(res)) {
+                resEl.innerText = pick('Ошибка: проверьте значения (деление на ноль или отрицательный корень)', 'Error: check the values (division by zero or a negative root)');
+                return;
+            }
+            if (!isFinite(res)) {
+                resEl.innerText = pick('Результат: ∞ (деление на ноль)', 'Result: ∞ (division by zero)');
+                return;
+            }
+            const unit = c.out[1] && c.out[1] !== '—' ? ' ' + T(c.out[1]) : '';
+            resEl.innerText = pick('Результат: ', 'Result: ') + fmtResult(res) + unit;
+        }
+
+        window.filterCalculators = function() {
+            const input = document.getElementById('calc-search');
+            const query = (input ? input.value : '').toLowerCase().trim();
+            const filtered = calcsDB.filter(c =>
+                T(c.name).toLowerCase().includes(query) ||
+                T(c.category).toLowerCase().includes(query) ||
+                c.formula.toLowerCase().includes(query) ||
+                T(c.out[0]).toLowerCase().includes(query) ||
+                c.name.toLowerCase().includes(query) ||
+                c.category.toLowerCase().includes(query)
+            );
+            renderCalculators(filtered);
+        }
+
+        // ===== КВИЗЫ: вопрос и 4 варианта ответа, порядок и варианты случайные =====
+        // grade — класс школы (7–11), по нему и подбираются вопросы
+        const quizDB = [
+            // ---------- 7 класс: механика, силы, давление, простые механизмы ----------
+            { grade: 7, q: "Как записывается второй закон Ньютона?", options: ["F = m · a", "E = m · c²", "p = m · v", "A = F · s"], correct: 0 },
+            { grade: 7, q: "В каких единицах измеряется сила?", options: ["Ньютон", "Джоуль", "Ватт", "Паскаль"], correct: 0 },
+            { grade: 7, q: "Чему примерно равно ускорение свободного падения?", options: ["9,8 м/с²", "6,67 м/с²", "340 м/с²", "1,6 м/с²"], correct: 0 },
+            { grade: 7, q: "Как записывается плотность вещества?", options: ["ρ = m / V", "p = F / S", "v = S / t", "E = m · c²"], correct: 0 },
+            { grade: 7, q: "В каких единицах измеряется давление?", options: ["Паскаль", "Ньютон", "Джоуль", "Ватт"], correct: 0 },
+            { grade: 7, q: "Первый закон Ньютона также называют...", options: ["законом инерции", "законом сохранения энергии", "законом всемирного тяготения", "законом сохранения импульса"], correct: 0 },
+            { grade: 7, q: "Согласно третьему закону Ньютона, силы взаимодействия двух тел...", options: ["равны по модулю и противоположны по направлению", "равны по модулю и совпадают по направлению", "не зависят друг от друга", "сумма их всегда равна нулю"], correct: 0 },
+            { grade: 7, q: "Куда направлена сила Архимеда?", options: ["вертикально вверх", "вертикально вниз", "по горизонтали", "вдоль поверхности тела"], correct: 0 },
+            { grade: 7, q: "Как записывается сила тяжести?", options: ["F = m · g", "F = m · a", "F = k · x", "F = μ · N"], correct: 0 },
+            { grade: 7, q: "Какая формула выражает давление твёрдого тела?", options: ["p = F / S", "p = m / V", "p = A / t", "p = F · s"], correct: 0 },
+            { grade: 7, q: "Как записывается закон Архимеда?", options: ["F_А = ρ · g · V", "F = m · a", "p = F / S", "F = k · x"], correct: 0 },
+            { grade: 7, q: "В каких единицах измеряется работа?", options: ["Джоуль", "Ватт", "Ньютон", "Паскаль"], correct: 0 },
+            { grade: 7, q: "Как записывается мощность?", options: ["N = A / t", "p = F / S", "ρ = m / V", "E = m · c²"], correct: 0 },
+            { grade: 7, q: "Полезная работа 80 Дж, затрачена 100 Дж. Чему равен КПД?", options: ["80 %", "20 %", "120 %", "0,8 %"], correct: 0 },
+            { grade: 7, q: "Как записывается работа силы при движении вдоль неё?", options: ["A = F · s", "A = F / s", "A = m · g", "A = N · t"], correct: 0 },
+
+            // ---------- 8 класс: тепловые явления, электростатика, электрический ток ----------
+            { grade: 8, q: "Как записывается закон Ома для участка цепи?", options: ["I = U / R", "R = U · I", "U = I / R", "I = U · R"], correct: 0 },
+            { grade: 8, q: "Что измеряет амперметр?", options: ["силу тока", "напряжение", "сопротивление", "мощность"], correct: 0 },
+            { grade: 8, q: "Что измеряет вольтметр?", options: ["напряжение", "силу тока", "сопротивление", "частоту"], correct: 0 },
+            { grade: 8, q: "От чего зависит сопротивление проводника?", options: ["от материала, длины и площади сечения", "только от длины", "только от материала", "от силы тока"], correct: 0 },
+            { grade: 8, q: "Как записывается закон Джоуля — Ленца?", options: ["Q = I² · R · t", "Q = I · R / t", "Q = U · I / t", "Q = I · t / R"], correct: 0 },
+            { grade: 8, q: "Как записывается уравнение Менделеева — Клапейрона?", options: ["p · V = ν · R · T", "p · V = m · g", "F = m · a", "Q = c · m · ΔT"], correct: 0 },
+            { grade: 8, q: "Сколько градусов Цельсия соответствует 0 Кельвина?", options: ["−273 °C", "+273 °C", "0 °C", "−100 °C"], correct: 0 },
+            { grade: 8, q: "Закон Кулона описывает...", options: ["взаимодействие электрических зарядов", "взаимодействие магнитных полей", "тепловой обмен между телами", "отражение света от поверхности"], correct: 0 },
+            { grade: 8, q: "В каких единицах измеряется электрический заряд?", options: ["Кулон", "Ампер", "Ом", "Вольт"], correct: 0 },
+            { grade: 8, q: "В каких единицах измеряется сила тока?", options: ["Ампер", "Вольт", "Ом", "Ватт"], correct: 0 },
+            { grade: 8, q: "В каких единицах измеряется электрическое напряжение?", options: ["Вольт", "Ампер", "Ом", "Кулон"], correct: 0 },
+            { grade: 8, q: "Как записывается количество теплоты при нагревании?", options: ["Q = c · m · ΔT", "Q = I² · R · t", "Q = m · g · h", "Q = U · I · t"], correct: 0 },
+            { grade: 8, q: "Что такое удельная теплоёмкость?", options: ["количество теплоты для нагревания 1 кг вещества на 1 °C", "количество теплоты для плавления 1 кг вещества", "масса единицы объёма", "работа, совершённая за 1 с"], correct: 0 },
+            { grade: 8, q: "Как записывается работа электрического тока?", options: ["A = U · I · t", "A = I · R / t", "A = U · I / t", "A = I · t / R"], correct: 0 },
+            { grade: 8, q: "Какое соединение проводников даёт сопротивление R = R₁ + R₂?", options: ["последовательное", "параллельное", "любое", "смешанное даёт R₁ · R₂"], correct: 0 },
+
+            // ---------- 9 класс: колебания и волны, магнетизм, свет ----------
+            { grade: 9, q: "В каких единицах измеряется частота?", options: ["Герц", "Секунда", "Радиан", "Метр"], correct: 0 },
+            { grade: 9, q: "Что такое период колебаний?", options: ["время одного полного колебания", "число колебаний в секунду", "амплитуда колебания", "скорость колебания"], correct: 0 },
+            { grade: 9, q: "Что утверждает закон отражения света?", options: ["угол падения равен углу отражения", "угол падения больше угла отражения", "свет всегда преломляется под 45°", "луч полностью поглощается поверхностью"], correct: 0 },
+            { grade: 9, q: "Как записывается показатель преломления?", options: ["n = c / v", "n = v / c", "n = c · t", "n = s / t"], correct: 0 },
+            { grade: 9, q: "Как записывается магнитный поток?", options: ["Φ = B · S · cos(α)", "Φ = B / S", "Φ = B · I · l", "Φ = B · t"], correct: 0 },
+            { grade: 9, q: "Как записывается сила Ампера?", options: ["F = B · I · l · sin(α)", "F = B · q · v", "F = m · a", "F = q · E"], correct: 0 },
+            { grade: 9, q: "Как записывается сила Лоренца?", options: ["F = B · q · v · sin(α)", "F = B · I · l", "F = m · g", "F = k · x"], correct: 0 },
+            { grade: 9, q: "Как записывается период математического маятника?", options: ["T = 2π · √(l / g)", "T = 2π · √(m / k)", "T = l / v", "T = 1 / ν"], correct: 0 },
+            { grade: 9, q: "Чему примерно равна скорость звука в воздухе?", options: ["340 м/с", "300 000 м/с", "7,9 км/с", "50 м/с"], correct: 0 },
+            { grade: 9, q: "Какая волна называется поперечной?", options: ["колебания происходят перпендикулярно направлению движения", "колебания идут вдоль направления движения", "волна не распространяется", "скорость волны равна нулю"], correct: 0 },
+            { grade: 9, q: "Что такое резонанс?", options: ["усиление колебаний, когда частота совпадает с собственной частотой", "прекращение колебаний", "прохождение волны без искажений", "отражение волны от поверхности"], correct: 0 },
+            { grade: 9, q: "В каких единицах измеряется магнитная индукция?", options: ["Тесла", "Вебер", "Генри", "Кулон"], correct: 0 },
+
+            // ---------- 10 класс: механика, импульс, энергия, момент силы ----------
+            { grade: 10, q: "Как записывается закон всемирного тяготения?", options: ["F = (G · m₁ · m₂) / r²", "F = m · a", "F = k · x", "F = q · E"], correct: 0 },
+            { grade: 10, q: "Как записывается импульс тела?", options: ["p = m · v", "p = m · a", "p = F / s", "p = N / t"], correct: 0 },
+            { grade: 10, q: "Как записывается кинетическая энергия?", options: ["Ek = (m · v²) / 2", "Ep = m · g · h", "p = m · v", "N = A / t"], correct: 0 },
+            { grade: 10, q: "Как записывается потенциальная энергия в поле тяжести?", options: ["Ep = m · g · h", "Ek = (m · v²) / 2", "F = m · a", "A = F · s"], correct: 0 },
+            { grade: 10, q: "Как записывается момент силы?", options: ["M = F · l · sin(α)", "M = m · a", "M = p · v", "M = F / s"], correct: 0 },
+            { grade: 10, q: "Что такое равнодействующая сил?", options: ["сила, равная векторной сумме всех сил", "самая большая из сил", "сила трения", "сила реакции опоры"], correct: 0 },
+            { grade: 10, q: "Какая система отсчёта является инерциальной?", options: ["покоящаяся или движущаяся равномерно и прямолинейно", "разгоняющаяся", "вращающаяся", "падающая со свободным падением"], correct: 0 },
+            { grade: 10, q: "Как записывается центростремительное ускорение?", options: ["a = v² / R", "a = R / v²", "a = v · R", "a = g · h"], correct: 0 },
+            { grade: 10, q: "В каких единицах измеряется момент силы?", options: ["Н·м", "Дж", "Вт", "Н/м"], correct: 0 },
+            { grade: 10, q: "Что сохраняется при столкновении тел, если внешних сил нет?", options: ["импульс системы", "скорость каждого тела", "кинетическая энергия", "ускорение"], correct: 0 },
+            { grade: 10, q: "Как записывается закон сохранения механической энергии?", options: ["Ek₁ + Ep₁ = Ek₂ + Ep₂", "p₁ = p₂ только", "F₁ = F₂", "A = F · s"], correct: 0 },
+            { grade: 10, q: "Какая величина характеризует инертность тела?", options: ["масса", "вес", "объём", "скорость"], correct: 0 },
+
+            // ---------- 11 класс: электродинамика, квантовая и атомная физика ----------
+            { grade: 11, q: "Как записывается энергия фотона?", options: ["E = h · ν", "E = m · c²", "E = (k · x²) / 2", "E = p · v"], correct: 0 },
+            { grade: 11, q: "Какая формула связывает массу и энергию?", options: ["E = m · c²", "E = h · ν", "E = m · g · h", "E = (m · v²) / 2"], correct: 0 },
+            { grade: 11, q: "Какая примерно скорость света?", options: ["300 000 км/с", "340 км/с", "7,9 км/с", "150 000 км/с"], correct: 0 },
+            { grade: 11, q: "Как записывается полный закон Ома для замкнутой цепи?", options: ["I = ε / (R + r)", "I = U / R", "U = I · R", "I = U · r"], correct: 0 },
+            { grade: 11, q: "Что такое ЭДС (электродвижущая сила)?", options: ["работа сторонних сил по перемещению единичного заряда", "напряжение на резисторе", "сила тока в цепи", "мощность источника"], correct: 0 },
+            { grade: 11, q: "Как записывается уравнение фотоэффекта Эйнштейна?", options: ["h · ν = Aвых + Ek", "E = m · c²", "U = I · R", "p = m · v"], correct: 0 },
+            { grade: 11, q: "Как записывается закон электромагнитной индукции (закон Фарадея)?", options: ["ε = −ΔΦ / Δt", "ε = I · R", "Φ = B · S", "U = I · R"], correct: 0 },
+            { grade: 11, q: "В каких единицах измеряется индуктивность?", options: ["Генри", "Тесла", "Вебер", "Фарад"], correct: 0 },
+            { grade: 11, q: "Что такое радиоактивность?", options: ["самопроизвольный распад нестабильных ядер", "деление ядер под действием света", "нагревание вещества", "отражение радиоволн"], correct: 0 },
+            { grade: 11, q: "Какая частица возникает при бета-распаде?", options: ["электрон", "протон", "альфа-частица", "фотон"], correct: 0 },
+            { grade: 11, q: "Как звучит квантовое условие Бора?", options: ["m · v · r = n · (h / 2π)", "E = h · ν", "F = m · a", "p = m · v"], correct: 0 },
+            { grade: 11, q: "Какая частица переносит электромагнитное взаимодействие?", options: ["фотон", "нейтрино", "глюон", "мезон"], correct: 0 },
+            { grade: 11, q: "Что такое сверхпроводимость?", options: ["нулевое сопротивление ниже критической температуры", "сверхбыстрый нагрев проводника", "ток без напряжения", "проводимость изолятора"], correct: 0 }
+        ];
+
+        // Классы, доступные для выбора, и описание программы каждого из них
+        const QUIZ_GRADES = [7, 8, 9, 10, 11];
+        const QUIZ_GRADE_INFO = {
+            7: ['Механика: силы, давление, простые механизмы', 'Mechanics: forces, pressure, simple machines'],
+            8: ['Тепловые явления и электрический ток', 'Thermal phenomena and electric current'],
+            9: ['Колебания и волны, магнетизм, свет', 'Oscillations and waves, magnetism, light'],
+            10: ['Механика: импульс, энергия, момент силы', 'Mechanics: momentum, energy, torque'],
+            11: ['Электродинамика и квантовая физика', 'Electrodynamics and quantum physics']
+        };
+
+        const QUIZ_ROUND = 10; // вопросов за один заход
+        let quizGrade = null;  // выбранный класс (7–11), null = показать выбор класса
+        let quizDeck = [];
+        let quizPos = 0;
+        let quizScore = 0;
+        let quizCurrent = null;   // { text, opts: [{text, ok}] } — варианты уже перемешаны
+        let quizAnswered = -1;    // -1 = ещё не ответили
+        let quizFinished = false;
+
+        function quizPool() {
+            return quizDB.filter(q => q.grade === quizGrade);
+        }
+
+        function shuffleArr(a) {
+            const r = a.slice();
+            for (let i = r.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const t = r[i]; r[i] = r[j]; r[j] = t;
+            }
+            return r;
+        }
+
+        function dealQuiz() {
+            const q = quizDeck[quizPos];
+            if (!q) return;
+            quizCurrent = {
+                text: q.q,
+                opts: shuffleArr(q.options.map((t, i) => ({ text: t, ok: i === q.correct })))
+            };
+            quizAnswered = -1;
+        }
+
+        function startQuiz() {
+            // Класс ещё не выбран — показываем экран выбора класса
+            if (quizGrade === null) {
+                quizCurrent = null;
+                quizDeck = [];
+                quizFinished = false;
+                renderQuiz();
+                return;
+            }
+            const pool = quizPool();
+            if (!pool.length) {
+                quizGrade = null;
+                startQuiz();
+                return;
+            }
+            quizDeck = shuffleArr(pool).slice(0, Math.min(QUIZ_ROUND, pool.length));
+            quizPos = 0;
+            quizScore = 0;
+            quizFinished = false;
+            dealQuiz();
+            renderQuiz();
+        }
+
+        // Экран выбора класса (7–11)
+        function quizGradePickerHTML() {
+            const buttons = QUIZ_GRADES.map(g => {
+                const count = quizDB.filter(q => q.grade === g).length;
+                const info = QUIZ_GRADE_INFO[g] || ['', ''];
+                return `
+                    <button onclick="selectQuizGrade(${g})"
+                        class="group text-left bg-dark-700 hover:bg-dark-600 hover:border-primary/60 border border-dark-600 rounded-2xl p-5 transition-all cursor-pointer">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="w-12 h-12 rounded-xl bg-gradient-to-tr from-primary to-accent text-white text-xl font-bold flex items-center justify-center group-hover:scale-110 transition-transform">${g}</span>
+                            <span class="text-[11px] bg-dark-900/70 text-gray-400 px-2 py-1 rounded-full">${pick(`${count} ${pluralQuestions(count)}`, `${count} questions`)}</span>
+                        </div>
+                        <p class="mt-3 text-sm font-semibold text-white">${pick(`${g} класс`, `Grade ${g}`)}</p>
+                        <p class="text-xs text-gray-400 mt-1 leading-snug">${pick(info[0], info[1])}</p>
+                    </button>`;
+            }).join('');
+
+            return `
+                <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 md:p-8 space-y-5">
+                    <div class="text-center space-y-2">
+                        <div class="w-16 h-16 mx-auto rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center text-2xl">
+                            <i class="fa-solid fa-school"></i>
+                        </div>
+                        <h4 class="text-xl font-bold text-white">${pick('Выбери свой класс', 'Choose your grade')}</h4>
+                        <p class="text-sm text-gray-400">${pick('Вопросы будут подобраны по программе выбранного класса', 'Questions are picked for the selected grade’s curriculum')}</p>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">${buttons}</div>
+                </div>`;
+        }
+
+        // Склонение слова «вопросов» в зависимости от числа
+        function pluralQuestions(n) {
+            const a = Math.abs(n) % 100, b = a % 10;
+            if (a > 10 && a < 20) return 'вопросов';
+            if (b > 1 && b < 5) return 'вопроса';
+            if (b === 1) return 'вопрос';
+            return 'вопросов';
+        }
+
+        window.selectQuizGrade = function(g) {
+            if (QUIZ_GRADES.indexOf(Number(g)) === -1) return;
+            quizGrade = Number(g);
+            startQuiz();
+        };
+
+        window.changeQuizGrade = function() {
+            quizGrade = null;
+            quizCurrent = null;
+            quizDeck = [];
+            quizPos = 0;
+            quizScore = 0;
+            quizAnswered = -1;
+            quizFinished = false;
+            renderQuiz();
+        };
+
+        function renderQuiz() {
+            const card = document.getElementById('quiz-card');
+            if (!card) return;
+
+            if (quizGrade === null || !quizCurrent) {
+                card.innerHTML = quizGradePickerHTML();
+                return;
+            }
+
+            if (quizFinished) {
+                const total = quizDeck.length;
+                const pct = total ? quizScore / total : 0;
+                const verdict = pct >= 0.8
+                    ? pick('Отлично! Ты отлично знаешь тему.', 'Excellent! You know the topic really well.')
+                    : pct >= 0.5
+                        ? pick('Неплохо! Есть над чем поработать.', 'Not bad! There is room to improve.')
+                        : pick('Стоит повторить тему и попробовать снова.', 'Worth reviewing the topic and trying again.');
+                card.innerHTML = `
+                    <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 md:p-8 text-center space-y-4">
+                        <div class="w-16 h-16 mx-auto rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-2xl">
+                            <i class="fa-solid ${pct >= 0.5 ? 'fa-trophy' : 'fa-rotate-right'}"></i>
+                        </div>
+                        <h4 class="text-xl font-bold text-white">${pick('Квиз завершён!', 'Quiz complete!')}</h4>
+                        <p class="text-3xl font-extrabold text-accent">${quizScore} / ${total}</p>
+                        <p class="text-sm text-gray-400">${pick('Правильных ответов:', 'Correct answers:')} ${quizScore} ${pick('из', 'of')} ${total}</p>
+                        <p class="text-gray-300">${verdict}</p>
+                        <div class="flex flex-wrap items-center justify-center gap-3">
+                            <button onclick="restartQuiz()" class="px-6 py-3 bg-primary hover:bg-primary-hover text-white font-medium rounded-xl transition-all">${pick('Играть снова', 'Play again')}</button>
+                            <button onclick="changeQuizGrade()" class="px-6 py-3 bg-dark-700 hover:bg-dark-600 text-gray-200 font-medium rounded-xl border border-dark-600 transition-all">${pick('Сменить класс', 'Change grade')}</button>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            const total = quizDeck.length;
+            const answered = quizAnswered >= 0;
+            const done = quizPos + (answered ? 1 : 0);
+            const pct = Math.round((done / total) * 100);
+
+            const optsHtml = quizCurrent.opts.map((o, i) => {
+                let cls = 'bg-dark-700 hover:bg-dark-600 border-dark-600 text-gray-200';
+                if (answered) {
+                    if (o.ok) cls = 'bg-emerald-600/20 border-emerald-500 text-emerald-300';
+                    else if (i === quizAnswered) cls = 'bg-red-500/20 border-red-500 text-red-300';
+                    else cls = 'bg-dark-800 border-dark-600 text-gray-500';
+                }
+                return `
+                    <button ${answered ? 'disabled' : ''} onclick="quizAnswer(${i})"
+                        class="w-full text-left px-4 py-3 rounded-xl border transition-all ${cls} flex items-center space-x-3 ${answered ? 'cursor-default' : 'cursor-pointer'}">
+                        <span class="w-6 h-6 rounded-full bg-dark-900/60 text-[11px] flex items-center justify-center shrink-0 font-bold">${'ABCD'[i]}</span>
+                        <span class="text-sm">${T(o.text)}</span>
+                    </button>`;
+            }).join('');
+
+            let feedback = '';
+            if (answered) {
+                const ok = quizCurrent.opts[quizAnswered].ok;
+                feedback = ok
+                    ? `<p class="text-emerald-400 font-medium text-sm">✓ ${pick('Правильно!', 'Correct!')}</p>`
+                    : `<p class="text-red-400 font-medium text-sm">✗ ${pick('Неправильно! Правильный ответ:', 'Wrong! The correct answer:')} ${T(quizCurrent.opts.find(o => o.ok).text)}</p>`;
+            }
+
+            const isLast = quizPos + 1 >= total;
+            card.innerHTML = `
+                <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 md:p-8 space-y-4 md:space-y-5">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <span class="text-xs bg-primary/20 text-primary-light px-3 py-1 rounded-full border border-primary/30">${pick(`${quizGrade} класс`, `Grade ${quizGrade}`)}</span>
+                        <button onclick="changeQuizGrade()" class="text-xs bg-dark-700 hover:bg-dark-600 text-gray-300 px-3 py-1.5 rounded-lg border border-dark-600 transition-all">${pick('Сменить класс', 'Change grade')}</button>
+                    </div>
+                    <div class="flex items-center justify-between text-sm">
+                        <span class="text-gray-400">${pick(`Вопрос ${quizPos + 1} из ${total}`, `Question ${quizPos + 1} of ${total}`)}</span>
+                        <span class="text-emerald-400 font-semibold">${pick('Счёт:', 'Score:')} ${quizScore}</span>
+                    </div>
+                    <div class="w-full bg-dark-900 rounded-full h-2 overflow-hidden">
+                        <div class="bg-gradient-to-r from-primary to-accent h-2 rounded-full transition-all" style="width: ${pct}%"></div>
+                    </div>
+                    <h4 class="text-lg font-bold text-white leading-snug">${T(quizCurrent.text)}</h4>
+                    <div class="grid gap-3">${optsHtml}</div>
+                    <div class="flex items-center justify-between gap-4 min-h-[24px]">
+                        <div class="text-sm">${feedback || `<span class="text-gray-500">${pick('Выбери один вариант ответа', 'Choose one answer')}</span>`}</div>
+                        ${answered ? `<button onclick="quizNext()" class="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-sm font-medium rounded-xl transition-all shrink-0">${isLast ? pick('Показать результат', 'Show results') : pick('Далее', 'Next')}</button>` : ''}
+                    </div>
+                </div>`;
+        }
+
+        window.quizAnswer = function(i) {
+            if (quizAnswered >= 0 || !quizCurrent || quizFinished) return;
+            quizAnswered = i;
+            if (quizCurrent.opts[i].ok) quizScore++;
+            renderQuiz();
+        };
+
+        window.quizNext = function() {
+            if (quizAnswered < 0) return;
+            if (quizPos + 1 >= quizDeck.length) {
+                quizFinished = true;
+            } else {
+                quizPos++;
+                dealQuiz();
+            }
+            renderQuiz();
+        };
+
+        window.restartQuiz = function() { startQuiz(); };
+
+        function systemPrompt() {
+            const ru = `Ты — FizAI, умный репетитор-помощник для школьников и студентов. Ты помогаешь со всеми предметами и вопросами: физика, математика, химия, биология, история, языки, программирование, домашние задания и любые другие темы. Твоя цель — чтобы ученик понял тему и сам справился с заданием. Всегда отвечай на русском языке (или на языке вопроса), дружелюбно и простым языком. Ты можешь разбирать задачи, объяснять темы, проверять решения, помогать с кодом, переводами, письмами и любыми другими вопросами. Если прислали фото или файл — опиши, что на нём, и помоги разобраться.
+
+Главные правила:
+1. Помогай со всеми предметами и вопросами: объясняй темы, разбирай задачи, проверяй решения, помогай с кодом, переводами и любыми другими вопросами. Если просят решение — можешь дать его с подробным объяснением, но всегда объясняй ход мыслей, чтобы ученик понял.
+2. Объясняй просто и понятно, с примерами из жизни. Формулы записывай простыми символами (F = m · a) и объясняй, что означает каждая буква.
+3. Если прислали задачу — разбери её: к какой теме относится, какие идеи нужны, предложи план решения. Если нужно, покажи решение по шагам с пояснениями.
+4. Если прислали своё решение — проверь его, укажи ошибки и объясни, как исправить.
+5. Если прислали фото или файл — опиши, что на нём, и помоги разобраться с содержимым.
+6. Отвечай по существу, дружелюбно. Можно отвечать длиннее, если вопрос сложный, но без воды.
+7. Пиши обычным текстом: никакого Markdown и LaTeX, не ставь символы #, *, _, $, обратные кавычки, фигурные скобки и слэши. Формулы записывай простыми символами, например F = m · a, v = S / t. Шаги нумеруй цифрой с точкой.`;
+            if (currentLang === 'en') return ru + `
+
+Interface language: English. The whole app is now in English, so always answer the student in English — friendly and in simple language. You help with all subjects and questions. Keep following all the rules above (including: no Markdown, formulas as plain text like F = m · a).`;
+            if (currentLang === 'kk') return ru + `
+Interface language: Kazakh. The whole app is now in Kazakh, so always answer the student in Kazakh — friendly and in simple language. You help with all subjects and questions. Keep following all the rules above (including: no Markdown, formulas as plain text like F = m · a).`;
+            return ru;
+        }
+
+        const chatHistory = [
+            { role: "system", content: systemPrompt() }
+        ];
+        let chatAttachments = []; // { name, type, dataUrl, text, isImage }
+
+        // Очищает LaTeX-выражение до читаемого простого текста
+        function latexToPlain(expr) {
+            let e = ' ' + expr + ' ';
+            for (let i = 0; i < 5 && e.indexOf('\\frac{') !== -1; i++) {
+                e = e.replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)');
+            }
+            e = e.replace(/\\sqrt\{([^{}]*)\}/g, '√($1)');
+            e = e.replace(/\\(?:cdot|times)\b/g, ' · ');
+            e = e.replace(/\\div\b/g, ' ÷ ');
+            e = e.replace(/\\pm\b/g, ' ± ');
+            e = e.replace(/\\Delta\b/g, 'Δ');
+            e = e.replace(/\\(?:left|right)\b/g, '');
+            e = e.replace(/\\(?:,|;|!|quad|qquad)/g, ' ');
+            const greek = { alpha:'α', beta:'β', gamma:'γ', delta:'δ', epsilon:'ε', zeta:'ζ', eta:'η', theta:'θ',
+                lambda:'λ', mu:'μ', nu:'ν', pi:'π', rho:'ρ', sigma:'σ', tau:'τ', phi:'φ', chi:'χ', psi:'ψ', omega:'ω' };
+            e = e.replace(/\\([a-zA-Z]+)/g, (m, name) => greek[name] || '');
+            const SUP = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','+':'⁺','-':'⁻','n':'ⁿ' };
+            const SUB = { '0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉','+':'₊','-':'₋','x':'ₓ','i':'ᵢ','n':'ₙ','a':'ₐ','e':'ₑ','o':'ₒ','r':'ᵣ','s':'ₛ','t':'ₜ','u':'ᵤ','v':'ᵥ' };
+            const map = (s, tbl) => Array.from(s).map(c => tbl[c] || c).join('');
+            e = e.replace(/\^\{([^{}]*)\}|\^([^\s{}])/g, (m, a, b) => map(a !== undefined ? a : b, SUP));
+            e = e.replace(/_\{([^{}]*)\}|_([^\s{}])/g, (m, a, b) => map(a !== undefined ? a : b, SUB));
+            e = e.replace(/[{}]/g, '');
+            return e.replace(/\s+/g, ' ').trim();
+        }
+
+        // Убирает из ответа ИИ символы Markdown и LaTeX,
+        // чтобы на экране не появлялась разметка
+        function renderPlain(text) {
+            let t = String(text == null ? '' : text);
+
+            // 1. Формулы (LaTeX) превращаем в обычный текст
+            t = t.replace(/\$\$([\s\S]+?)\$\$/g, (m, e) => latexToPlain(e));
+            t = t.replace(/\\\[([\s\S]+?)\\\]/g, (m, e) => latexToPlain(e));
+            t = t.replace(/\\\(([\s\S]+?)\\\)/g, (m, e) => latexToPlain(e));
+            t = t.replace(/\$([^$\n]+?)\$/g, (m, e) => latexToPlain(e));
+
+            // 2. Убираем остатки Markdown
+            t = t.replace(/^\s{0,3}#{1,6}\s+/gm, '');                 // ## Заголовок
+            t = t.replace(/^(\s*)([-*+])\s+/gm, '$1• ');              // маркированный список
+            t = t.replace(/^\s*>\s?/gm, '');                          // цитата >
+            t = t.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');            // ссылка [текст](url)
+            t = t.replace(/(\*\*\*|\*\*|__|~~|`+)([\s\S]+?)\1/g, '$2'); // жирный, зачёркнутый, код
+            t = t.replace(/\*([^*\n]+)\*/g, '$1');                    // курсив
+            t = t.replace(/_([^_\n]+)_/g, '$1');                      // курсив _
+            t = t.replace(/^\s*(-{3,}|\*{3,}|_{3,})\s*$/gm, '——');    // разделитель
+
+            // 3. Экранируем HTML (переносы строк сохраняем — у блока whitespace-pre-wrap)
+            return escapeHtml(t);
+        }
+
+        function appendMessage(sender, text, attachments) {
+            attachments = attachments || [];
+            const container = document.getElementById('chat-container');
+            container.dataset.greeting = '0';
+            const isUser = sender === 'user';
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex items-start space-x-3 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`;
+            let attHtml = '';
+            if (isUser && attachments.length) {
+                attHtml = '<div class="flex flex-wrap gap-2 mb-2">' + attachments.map(a => {
+                    if (a.isImage) return `<img src="${a.dataUrl}" alt="${escapeHtml(a.name)}" class="h-24 w-24 object-cover rounded-lg border border-white/30">`;
+                    return `<div class="flex items-center gap-2 bg-white/15 rounded-lg px-2 py-1 text-xs"><i class="fa-solid fa-file"></i><span class="max-w-[120px] truncate">${escapeHtml(a.name)}</span></div>`;
+                }).join('') + '</div>';
+            }
+            messageDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-full ${isUser ? 'bg-accent text-dark-900' : 'bg-primary text-white'} flex items-center justify-center text-xs shrink-0 font-bold">
+                    <i class="fa-solid ${isUser ? 'fa-user' : 'fa-robot'}"></i>
+                </div>
+                <div class="${isUser ? 'chat-bubble-user text-white' : 'chat-bubble-ai text-gray-200'} p-4 rounded-2xl text-sm max-w-xl shadow-md whitespace-pre-wrap">
+                    ${attHtml}
+                    ${isUser ? escapeHtml(text) : renderPlain(text)}
+                </div>
+            `;
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        window.clearChat = function() {
+            const chat = document.getElementById('chat-container');
+            chat.dataset.greeting = 'cleared';
+            chat.innerHTML = clearedHTML();
+            chatHistory.splice(1);
+        }
+
+        window.sendPresetPrompt = function(text) {
+            switchTab('ai');
+            document.getElementById('user-input').value = text;
+            handleChatSubmit(new Event('submit'));
+        }
+
+        // ===== ПЕРЕВОДЧИК =====
+        async function gtxTranslate(text, sl, tl) {
+            const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=' + encodeURIComponent(sl) + '&tl=' + encodeURIComponent(tl) + '&dt=t&q=' + encodeURIComponent(text);
+            const r = await fetch(url);
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const data = await r.json();
+            const joined = (Array.isArray(data[0]) ? data[0] : []).map(c => (Array.isArray(c) ? c[0] : '') || '').join('');
+            return joined.trim() || text;
+        }
+
+        window.doTranslate = async function() {
+            const input = document.getElementById('tr-input');
+            const out = document.getElementById('tr-output');
+            const status = document.getElementById('tr-status');
+            const from = document.getElementById('tr-from').value;
+            const to = document.getElementById('tr-to').value;
+            const text = (input.value || '').trim();
+            if (!text) { out.innerText = ''; status.innerText = 'Введите текст.'; return; }
+            if (from === to && from !== 'auto') { out.innerText = text; status.innerText = 'Языки совпадают.'; return; }
+            status.innerText = 'Переводим...';
+            out.innerText = '';
+            try {
+                const sl = from === 'auto' ? 'auto' : from;
+                const res = await gtxTranslate(text, sl, to);
+                out.innerText = res;
+                status.innerText = 'Готово.';
+            } catch (e) {
+                status.innerText = 'Ошибка: ' + (e && e.message ? e.message : e);
+            }
+        };
+
+        window.swapLangs = function() {
+            const from = document.getElementById('tr-from');
+            const to = document.getElementById('tr-to');
+            if (from.value === 'auto') return;
+            const tmp = from.value; from.value = to.value; to.value = tmp;
+            const inp = document.getElementById('tr-input');
+            const out = document.getElementById('tr-output');
+            if (out.innerText.trim()) { inp.value = out.innerText; out.innerText = ''; }
+        };
+
+        window.clearTranslator = function() {
+            document.getElementById('tr-input').value = '';
+            document.getElementById('tr-output').innerText = '';
+            document.getElementById('tr-status').innerText = '';
+        };
+
+        function isImageFile(f) { return /^image\//.test(f.type); }
+        function readFileAsDataURL(f) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); }); }
+        function compressImageFile(f) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                const url = URL.createObjectURL(f);
+                img.onload = () => {
+                    URL.revokeObjectURL(url);
+                    const MAX = 1280;
+                    let w = img.width, h = img.height;
+                    if (w > MAX || h > MAX) {
+                        const scale = MAX / Math.max(w, h);
+                        w = Math.round(w * scale);
+                        h = Math.round(h * scale);
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, w, h);
+                    resolve(canvas.toDataURL('image/jpeg', 0.82));
+                };
+                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('img load failed')); };
+                img.src = url;
+            });
+        }
+        function readFileAsText(f) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsText(f); }); }
+
+        window.handleFileSelect = async function(e) {
+            const files = Array.from(e.target.files || []);
+            e.target.value = '';
+            let skippedByLimit = false;
+            for (const f of files) {
+                try {
+                    if (isImageFile(f)) {
+                        // Groq принимает не больше 3 изображений на один запрос
+                        const imagesCount = chatAttachments.filter(a => a.isImage).length;
+                        if (imagesCount >= MAX_IMAGES) { skippedByLimit = true; continue; }
+                        let dataUrl;
+                        try { dataUrl = await compressImageFile(f); }
+                        catch (e) { dataUrl = await readFileAsDataURL(f); }
+                        chatAttachments.push({ name: f.name.replace(/\.[^.]+$/, '.jpg'), type: 'image/jpeg', dataUrl, text: null, isImage: true });
+                    } else if (f.type.startsWith('text/') || /\.(txt|md|csv|json|js|html|css|py|java|c|cpp|ts)$/i.test(f.name)) {
+                        const text = await readFileAsText(f);
+                        chatAttachments.push({ name: f.name, type: f.type, dataUrl: null, text, isImage: false });
+                    } else {
+                        const dataUrl = await readFileAsDataURL(f);
+                        chatAttachments.push({ name: f.name, type: f.type, dataUrl, text: null, isImage: false });
+                    }
+                } catch (err) { console.error(err); }
+            }
+            renderChatAttachments();
+            if (skippedByLimit) {
+                alert(pick('Можно приложить не больше 3 фото за раз.', 'You can attach up to 3 photos at a time.'));
+            }
+        };
+
+        function renderChatAttachments() {
+            const box = document.getElementById('chat-attachments');
+            if (!box) return;
+            box.innerHTML = chatAttachments.map((a, i) => {
+                if (a.isImage) {
+                    return `<div class="relative"><img src="${a.dataUrl}" alt="${escapeHtml(a.name)}" class="h-16 w-16 object-cover rounded-lg border border-dark-600"><button type="button" onclick="removeAttachment(${i})" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button></div>`;
+                }
+                return `<div class="flex items-center gap-2 bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-gray-200"><i class="fa-solid fa-file"></i><span class="max-w-[120px] truncate">${escapeHtml(a.name)}</span><button type="button" onclick="removeAttachment(${i})" class="text-gray-400 hover:text-red-400"><i class="fa-solid fa-xmark"></i></button></div>`;
+            }).join('');
+        }
+
+        window.removeAttachment = function(i) {
+            chatAttachments.splice(i, 1);
+            renderChatAttachments();
+        };
+
+        window.handleChatSubmit = async function(e) {
+            e.preventDefault();
+            const inputEl = document.getElementById('user-input');
+            const prompt = inputEl.value.trim();
+            if (!prompt && !chatAttachments.length) return;
+
+            const attachments = chatAttachments.slice();
+            chatAttachments = [];
+            renderChatAttachments();
+
+            // Собираем текст с учётом прикреплённых текстовых файлов
+            let fullPrompt = prompt;
+            const textFiles = attachments.filter(a => !a.isImage && a.text);
+            if (textFiles.length) {
+                fullPrompt += (fullPrompt ? '\n\n' : '') + textFiles.map(a => `--- Файл: ${a.name} ---\n${a.text}`).join('\n\n');
+            }
+            if (!fullPrompt && attachments.some(a => a.isImage)) {
+                fullPrompt = 'Что на этом изображении? Помоги разобраться.';
+            }
+
+            inputEl.value = '';
+            appendMessage('user', fullPrompt, attachments);
+
+            const container = document.getElementById('chat-container');
+            const loadingId = 'loading-' + Date.now();
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = loadingId;
+            loadingDiv.className = 'flex items-start space-x-3';
+            loadingDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs shrink-0"><i class="fa-solid fa-robot"></i></div>
+                <div class="chat-bubble-ai p-4 rounded-2xl text-sm text-gray-400 flex items-center space-x-2">
+                    <i class="fa-solid fa-spinner fa-spin text-primary-light"></i>
+                    <span>${pick('Думает...', 'Thinking...')}</span>
+                </div>
+            `;
+            container.appendChild(loadingDiv);
+            container.scrollTop = container.scrollHeight;
+
+            // Формируем content для API: текст + изображения (vision) если есть
+            const images = attachments.filter(a => a.isImage);
+            let userContent;
+            if (images.length) {
+                const parts = [];
+                if (fullPrompt) parts.push({ type: 'text', text: fullPrompt });
+                images.forEach(a => parts.push({ type: 'image_url', image_url: { url: a.dataUrl } }));
+                userContent = parts;
+            } else {
+                userContent = fullPrompt;
+            }
+            chatHistory.push({ role: "user", content: userContent });
+
+            if (chatHistory.length > 5) {
+                chatHistory.splice(1, 2); 
+            }
+
+            let success = false;
+            let attempts = 0;
+            let aiText = "";
+
+            while (!success && attempts < 3 && location.protocol !== 'file:') {
+                attempts++;
+                try {
+                    // Локальный файл (file://) — серверной функции нет, сразу сообщаем об этом
+                    if (location.protocol === 'file:') {
+                        // локальный файл: серверной функции нет; переходим к резервному каналу (ниже)
+                    }
+
+                    const response = await fetch(API_ENDPOINT, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            model: (images && images.length) ? VISION_MODEL : GROQ_MODEL,
+                            messages: chatHistory,
+                            // Максимум для openai/gpt-oss-20b (65 536) — в лимит входят
+                            // и "мысли" модели, поэтому ответ не оборвётся на середине.
+                            // Для vision-модели лимит меньше (16 384), иначе Groq отклонит запрос.
+                            max_tokens: (images && images.length) ? VISION_MAX_TOKENS : TEXT_MAX_TOKENS
+                        })
+                    });
+
+                    let data = null;
+                    try { data = await response.json(); } catch (e) { data = null; }
+
+                    if (!response.ok) {
+                        const msg = (data && data.error && data.error.message) ? data.error.message : ('HTTP ' + response.status);
+                        // Подсказка, если серверная функция не задеплоена (404)
+                        if (response.status === 404) {
+                            throw new Error(msg + ' — серверная функция не найдена. Нужно опубликовать папку целиком (вместе с netlify/functions), а не только index.html.');
+                        }
+                        throw new Error(msg);
+                    }
+
+                    if (data.choices && data.choices[0]) {
+                        aiText = (data.choices[0].message.content || '').trim() || pick('Пустой ответ от ИИ. Попробуйте переформулировать вопрос.', 'Empty answer from the AI. Try rephrasing your question.');
+                        success = true;
+                    } else if (data.error && data.error.message && data.error.message.includes("Rate limit")) {
+                        document.querySelector(`#${loadingId} span`).innerText = pick('Лимит, ждем', 'Rate limited, waiting') + ` (${attempts}/3)...`;
+                        await new Promise(resolve => setTimeout(resolve, 6000));
+                    } else {
+                        throw new Error(data.error?.message || 'Ошибка');
+                    }
+                } catch (error) {
+                    // Ошибки вроде "модель не найдена" или "неверный ключ" повторять бессмысленно
+                    const isDeployErr = /404|не найдена|not found|серверная функция/i.test(error.message);
+                    if (isDeployErr) {
+                        // не показываем ошибку сразу — попробуем резервный канал
+                        attempts = 3;
+                        break;
+                    }
+                    if (attempts >= 3 || /does not exist|do not have access|Invalid API Key|invalid_api_key/i.test(error.message)) {
+                        // не показываем ошибку сразу — попробуем резервный канал
+                        attempts = 3;
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                }
+            }
+
+            // Резервный канал: если серверная функция недоступна (404/сеть),
+            // пробуем открытый CORS-совместимый сервис, чтобы ИИ работал везде.
+            if (!success) {
+                try {
+                    const fbResponse = await fetch('https://flm.stonech.at/v1/chat/completions', {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            model: "auto",
+                            messages: chatHistory,
+                            max_tokens: 1024
+                        })
+                    });
+                    let fbData = null;
+                    try { fbData = await fbResponse.json(); } catch (e) { fbData = null; }
+                    if (fbResponse.ok && fbData && fbData.choices && fbData.choices[0]) {
+                        aiText = (fbData.choices[0].message.content || '').trim() || pick('Пустой ответ от ИИ. Попробуйте переформулировать вопрос.', 'Empty answer from the AI. Try rephrasing your question.');
+                        success = true;
+                    }
+                } catch (e) { /* игнорируем, покажем ошибку ниже */ }
+            }
+
+            document.getElementById(loadingId)?.remove();
+            if (success) {
+                appendMessage('ai', aiText);
+                chatHistory.push({ role: "assistant", content: aiText });
+            } else {
+                chatHistory.pop();
+                appendMessage('ai', pick('Не удалось получить ответ: сервер ИИ недоступен. Если вы открыли сайт локально или функция не задеплоена, ИИ не работает. Опубликуйте папку целиком (вместе с netlify/functions) на Netlify.', 'Could not get an answer: the AI server is unavailable. If you opened the site locally or the function is not deployed, AI will not work. Publish the whole folder (including netlify/functions) to Netlify.'));
+            }
+        }
+    </script>
+
+    <!-- Защита от просмотра исходного кода: F12, Ctrl+U, Ctrl+Shift+I, правая кнопка -->
+    <script>
+        (function () {
+            function notice(text) {
+                if (!document.body) return;
+                let t = document.getElementById('src-lock-toast');
+                if (!t) {
+                    t = document.createElement('div');
+                    t.id = 'src-lock-toast';
+                    t.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;' +
+                        'background:#111827;color:#e5e7eb;border:1px solid #374151;padding:10px 18px;border-radius:12px;' +
+                        'font:14px/1.3 Inter,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.45);opacity:0;transition:opacity .3s;pointer-events:none;';
+                    document.body.appendChild(t);
+                }
+                t.textContent = text;
+                t.style.opacity = '1';
+                clearTimeout(t._h);
+                t._h = setTimeout(function () { t.style.opacity = '0'; }, 1800);
+            }
+
+            function block(e) {
+                if (e && e.preventDefault) e.preventDefault();
+                if (e && e.stopPropagation) e.stopPropagation();
+                notice('Исходный код страницы закрыт 😉');
+                return false;
+            }
+
+            document.addEventListener('contextmenu', block);      // правая кнопка мыши
+            document.addEventListener('keydown', function (e) {
+                const k = String(e.key || '').toLowerCase();
+                const devTools =
+                    k === 'f12' ||                                  // F12
+                    (e.ctrlKey && e.shiftKey && ['i', 'j', 'c', 'k'].indexOf(k) !== -1) || // Ctrl+Shift+I/J/C/K
+                    (e.ctrlKey && !e.shiftKey && !e.altKey && ['u', 's'].indexOf(k) !== -1); // Ctrl+U / Ctrl+S
+                if (devTools) return block(e);
+            }, true);
+        })();
+    </script>
+</body>
+</html>
