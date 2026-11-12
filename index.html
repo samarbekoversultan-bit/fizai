@@ -5,38 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0b0f19">
     <title>FizAI — Ваш умный репетитор по физике</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        dark: {
-                            900: '#0b0f19',
-                            800: '#111827',
-                            700: '#1f2937',
-                            600: '#374151',
-                        },
-                        primary: {
-                            DEFAULT: '#6366f1',
-                            hover: '#4f46e5',
-                            light: '#818cf8',
-                        },
-                        accent: {
-                            DEFAULT: '#06b6d4',
-                            hover: '#0891b2',
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- Tailwind собран в локальный файл (CDN недоступен в части сетей).
+         Настройки цветов — в tailwind.config.js, пересборка: node build-css.js -->
+    <link rel="stylesheet" href="assets/tailwind.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/fontawesome/css/all.min.css">
     <style>
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #111827; }
