@@ -15,15 +15,21 @@ const https = require('https');
 const GEMINI_API_KEY = String(process.env.GEMINI_API_KEY || '').trim();
 const GROQ_API_KEY = String(process.env.GROQ_API_KEY || '').trim();
 
-// Основная модель Gemini + запасные: у Gemini бывают ответы 503 «high demand»
-const GEMINI_MODEL = String(process.env.GEMINI_MODEL || 'gemini-3.8-flash').trim();
-const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-flash-lite-latest'];
+// Основная модель Gemini + запасные: у Gemini быстрые ответы 503 «high demand»
+// и подвисания, поэтому модель можно поменять без правки кода — переменной GEMINI_MODEL.
+const GEMINI_MODEL = String(process.env.GEMINI_MODEL || 'gemini-flash-lite-latest').trim();
+const GEMINI_FALLBACKS = ['gemini-3.8-flash'];
+
+// Netlify обрывает синхронную функцию примерно на 10 секундах,
+// поэтому бюджет на все попытки — меньше этого лимита.
+const GEMINI_BUDGET_MS = 8500;
+const GEMINI_ATTEMPT_MS = 5000;
 
 // Ограничения, чтобы сайтом не пользовались как бесплатным ИИ-прокси
 const MAX_MESSAGES = 20;
 const MAX_CONTENT = 8000;   // символов в одном сообщении
 const MAX_TOKENS = 65536;
-const GEMINI_MAX_TOKENS = 8192;  // столько хватает для ответа в чате, и lite-модели не ругаются
+const GEMINI_MAX_TOKENS = 2048;  // держим ответ коротким, чтобы уложиться в лимит времени Netlify
 
 // У vision-модели Groq свой потолок генерации
 const MODEL_MAX_TOKENS = {
@@ -149,12 +155,13 @@ function toGeminiBody(messages, maxTokens) {
     return body;
 }
 
-async function callGemini(model, messages, maxTokens) {
+async function callGemini(model, messages, maxTokens, timeoutMs) {
     const r = await postJson(
         GEMINI_HOST,
         '/v1beta/models/' + encodeURIComponent(model) + ':generateContent',
         { 'x-goog-api-key': GEMINI_API_KEY },
-        toGeminiBody(messages, maxTokens)
+        toGeminiBody(messages, maxTokens),
+        timeoutMs
     );
 
     let data = null;
@@ -317,9 +324,17 @@ exports.handler = async function (event) {
 
     if (GEMINI_API_KEY) {
         const chain = [GEMINI_MODEL].concat(GEMINI_FALLBACKS.filter(function (m) { return m !== GEMINI_MODEL; }));
+        const started = Date.now();
         for (let i = 0; i < chain.length; i++) {
+            const left = GEMINI_BUDGET_MS - (Date.now() - started);
+            if (left < 1500) break;
             try {
-                const text = await callGemini(chain[i], cleaned, Math.min(maxTokens, GEMINI_MAX_TOKENS));
+                const text = await callGemini(
+                    chain[i],
+                    cleaned,
+                    Math.min(maxTokens, GEMINI_MAX_TOKENS),
+                    Math.min(GEMINI_ATTEMPT_MS, left)
+                );
                 return send(200, openAiLike(text, chain[i], 'gemini'));
             } catch (e) {
                 lastError = e;
@@ -353,7 +368,9 @@ exports.handler = async function (event) {
     }
 
     const status = lastError && lastError.status ? lastError.status : 502;
-    return send(status, {
-        error: { message: lastError && lastError.message ? lastError.message : 'ИИ временно недоступен' }
-    });
+    let message = lastError && lastError.message ? lastError.message : 'ИИ временно недоступен';
+    if (status === 503 || status === 429) {
+        message = 'ИИ сейчас перегружен. Подождите 10–20 секунд и отправьте вопрос ещё раз.';
+    }
+    return send(status, { error: { message: message } });
 };

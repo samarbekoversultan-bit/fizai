@@ -1758,7 +1758,7 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
             let attempts = 0;
             let aiText = "";
 
-            while (!success && attempts < 3 && location.protocol !== 'file:') {
+            while (!success && attempts < 2 && location.protocol !== 'file:') {
                 attempts++;
                 try {
                     // Локальный файл (file://) — серверной функции нет, сразу сообщаем об этом
@@ -1795,8 +1795,8 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
                         aiText = (data.choices[0].message.content || '').trim() || pick('Пустой ответ от ИИ. Попробуйте переформулировать вопрос.', 'Empty answer from the AI. Try rephrasing your question.');
                         success = true;
                     } else if (data.error && data.error.message && data.error.message.includes("Rate limit")) {
-                        document.querySelector(`#${loadingId} span`).innerText = pick('Лимит, ждем', 'Rate limited, waiting') + ` (${attempts}/3)...`;
-                        await new Promise(resolve => setTimeout(resolve, 6000));
+                        document.querySelector(`#${loadingId} span`).innerText = pick('Лимит, ждем', 'Rate limited, waiting') + ` (${attempts}/2)...`;
+                        await new Promise(resolve => setTimeout(resolve, 1500));
                     } else {
                         throw new Error(data.error?.message || 'Ошибка');
                     }
@@ -1804,40 +1804,21 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
                     // Ошибки вроде "модель не найдена" или "неверный ключ" повторять бессмысленно
                     const isDeployErr = /404|не найдена|not found|серверная функция/i.test(error.message);
                     if (isDeployErr) {
-                        // не показываем ошибку сразу — попробуем резервный канал
-                        attempts = 3;
+                        // не показываем ошибку сразу — попробуем ещё раз
+                        attempts = 2;
                         break;
                     }
-                    if (attempts >= 3 || /does not exist|do not have access|Invalid API Key|invalid_api_key/i.test(error.message)) {
-                        // не показываем ошибку сразу — попробуем резервный канал
-                        attempts = 3;
+                    if (attempts >= 2 || /does not exist|do not have access|Invalid API Key|invalid_api_key/i.test(error.message)) {
+                        // не показываем ошибку сразу — попробуем ещё раз
+                        attempts = 2;
                         break;
                     }
-                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    await new Promise(resolve => setTimeout(resolve, 1200));
                 }
             }
 
-            // Резервный канал: если серверная функция недоступна (404/сеть),
-            // пробуем открытый CORS-совместимый сервис, чтобы ИИ работал везде.
-            if (!success) {
-                try {
-                    const fbResponse = await fetch('https://flm.stonech.at/v1/chat/completions', {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            model: "auto",
-                            messages: chatHistory,
-                            max_tokens: 1024
-                        })
-                    });
-                    let fbData = null;
-                    try { fbData = await fbResponse.json(); } catch (e) { fbData = null; }
-                    if (fbResponse.ok && fbData && fbData.choices && fbData.choices[0]) {
-                        aiText = (fbData.choices[0].message.content || '').trim() || pick('Пустой ответ от ИИ. Попробуйте переформулировать вопрос.', 'Empty answer from the AI. Try rephrasing your question.');
-                        success = true;
-                    }
-                } catch (e) { /* игнорируем, покажем ошибку ниже */ }
-            }
+            // Резервный канал отключён: единственный провайдер — Gemini через серверную
+            // функцию. Сторонний сервис, куда уходили вопросы школьников, больше не используется.
 
             document.getElementById(loadingId)?.remove();
             if (success) {
@@ -1845,7 +1826,7 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
                 chatHistory.push({ role: "assistant", content: aiText });
             } else {
                 chatHistory.pop();
-                appendMessage('ai', pick('Не удалось получить ответ: сервер ИИ недоступен. Если вы открыли сайт локально или функция не задеплоена, ИИ не работает. Опубликуйте папку целиком (вместе с netlify/functions) на Netlify.', 'Could not get an answer: the AI server is unavailable. If you opened the site locally or the function is not deployed, AI will not work. Publish the whole folder (including netlify/functions) to Netlify.'));
+                appendMessage('ai', pick('ИИ сейчас не ответил — возможно, перегружен. Отправьте вопрос ещё раз через 10–20 секунд.', 'The AI did not answer — it may be overloaded. Try sending the question again in 10–20 seconds.'));
             }
         }
     </script>
