@@ -285,15 +285,11 @@
                     <div class="p-4 bg-dark-800 border-t border-dark-600 space-y-2">
                         <div id="chat-attachments" class="flex flex-wrap gap-2"></div>
                         <form id="chat-form" onsubmit="handleChatSubmit(event)" class="flex gap-2 items-end">
-                            <label class="shrink-0 w-11 h-11 rounded-xl bg-dark-700 hover:bg-dark-600 border border-dark-600 text-gray-200 flex items-center justify-center cursor-pointer transition-all" title="Сфотографировать">
-                                <i class="fa-solid fa-camera"></i>
-                                <input type="file" id="chat-camera-input" accept="image/*" capture="environment" class="hidden" onchange="handleFileSelect(event)">
+                            <label class="shrink-0 w-11 h-11 rounded-xl bg-dark-700 hover:bg-dark-600 border border-dark-600 text-gray-200 flex items-center justify-center cursor-pointer transition-all" title="Прикрепить текстовый файл">
+                                <i class="fa-solid fa-paperclip"></i>
+                                <input type="file" id="chat-file-input" accept="text/*,application/pdf,.doc,.docx,.xls,.xlsx" multiple class="hidden" onchange="handleFileSelect(event)">
                             </label>
-                            <label class="shrink-0 w-11 h-11 rounded-xl bg-dark-700 hover:bg-dark-600 border border-dark-600 text-gray-200 flex items-center justify-center cursor-pointer transition-all" title="Добавить фото или файл (или перетащить сюда)">
-                                <i class="fa-solid fa-image"></i>
-                                <input type="file" id="chat-file-input" accept="image/*,application/pdf,text/*,.doc,.docx,.xls,.xlsx" multiple class="hidden" onchange="handleFileSelect(event)">
-                            </label>
-                            <input type="text" id="user-input" placeholder="Спроси тему, пришли задачу, фото или файл (фото можно вставить через Ctrl+V)..." class="flex-1 bg-dark-900 border border-dark-600 rounded-xl px-4 py-3 text-sm text-gray-100 focus:outline-none focus:border-primary transition-all">
+                            <input type="text" id="user-input" placeholder="Спроси тему или пришли задачу..." class="flex-1 bg-dark-900 border border-dark-600 rounded-xl px-4 py-3 text-sm text-gray-100 focus:outline-none focus:border-primary transition-all">
                             <button type="submit" id="send-btn" class="bg-primary hover:bg-primary-hover text-white px-6 py-3 rounded-xl font-medium transition-all flex items-center justify-center"><i class="fa-solid fa-paper-plane"></i></button>
                         </form>
                     </div>
@@ -359,14 +355,9 @@
 
         // Модель Groq (резерв). Если придёт ошибка про модель, замените её и в netlify/functions/chat.js
         const GROQ_MODEL = "openai/gpt-oss-20b";
-        // Действующая vision-модель Groq (поддерживает картинки). Старая Llama 4 Scout отключена 17.07.2026.
-        const VISION_MODEL = "qwen/qwen3.8-27b";
-        // Максимум генерации: у qwen3.8-27b лимит 16 384 токена (больше Groq вернёт ошибку)
-        const VISION_MAX_TOKENS = 8192;
-        // Больше 8 192 токенов всё равно не отдаёт сервер, а короткий лимит = быстрее ответ
-        const TEXT_MAX_TOKENS = 8192;
-        // Gemini спокойно принимает больше фото; ограничение в 4 штуки — чтобы запрос был быстрым
-        const MAX_IMAGES = 4;
+        // Фото временно отключены — работаем только с текстом, это заметно быстрее.
+        // Короткий лимит ответа = быстрее генерация и меньше шансов на обрыв.
+        const TEXT_MAX_TOKENS = 4096;
 
         // «Прогреваем» серверные функции, когда пользователь открыл чат:
         // первый вопрос не будет ждать холодного старта функции.
@@ -1646,142 +1637,32 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
             document.getElementById('tr-status').innerText = '';
         };
 
-        function isImageFile(f) {
-            if (!f) return false;
-            return /^image\//.test(f.type || '') || /\.(jpe?g|png|webp|gif|heic|heif|bmp)$/i.test(f.name || '');
-        }
         function readFileAsDataURL(f) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); }); }
-        // Сжимаем фото перед отправкой: загружаются в разы быстрее,
-        // и ИИ обрабатывает их быстрее (Gemini всё равно уменьшает большие снимки).
-        function compressImageFile(f) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                const url = URL.createObjectURL(f);
-                img.onload = () => {
-                    URL.revokeObjectURL(url);
-                    const MAX = 1100;
-                    let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-                    if (!w || !h) { reject(new Error('bad image')); return; }
-                    if (w > MAX || h > MAX) {
-                        const scale = MAX / Math.max(w, h);
-                        w = Math.max(1, Math.round(w * scale));
-                        h = Math.max(1, Math.round(h * scale));
-                    }
-                    const canvas = document.createElement('canvas');
-                    canvas.width = w; canvas.height = h;
-                    const ctx = canvas.getContext('2d');
-                    // белый фон: иначе прозрачный PNG станет чёрным в JPEG
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, w, h);
-                    ctx.drawImage(img, 0, 0, w, h);
-                    resolve(canvas.toDataURL('image/jpeg', 0.8));
-                };
-                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('img load failed')); };
-                img.src = url;
-            });
-        }
         function readFileAsText(f) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsText(f); }); }
 
-        let attachmentsBusy = 0; // сколько фото сейчас обрабатывается
-
-        async function addFiles(files) {
-            const list = Array.from(files || []);
-            if (!list.length) return;
-            attachmentsBusy++;
-            renderChatAttachments();
-            let skippedByLimit = false;
-            for (const f of list) {
+        window.handleFileSelect = async function(e) {
+            const files = Array.from(e.target.files || []);
+            e.target.value = '';
+            for (const f of files) {
                 try {
-                    if (isImageFile(f)) {
-                        if (chatAttachments.filter(a => a.isImage).length >= MAX_IMAGES) { skippedByLimit = true; continue; }
-                        if (f.size > 15 * 1024 * 1024) {
-                            alert(pick('Фото больше 15 МБ — пришлите, пожалуйста, поменьше.', 'The photo is larger than 15 MB — please send a smaller one.'));
-                            continue;
-                        }
-                        let dataUrl;
-                        try { dataUrl = await compressImageFile(f); }
-                        catch (e) { dataUrl = await readFileAsDataURL(f); }
-                        chatAttachments.push({ name: (f.name || 'photo').replace(/\.[^.]+$/, '.jpg'), type: 'image/jpeg', dataUrl, text: null, isImage: true });
-                    } else if (f.type.startsWith('text/') || /\.(txt|md|csv|json|js|html|css|py|java|c|cpp|ts)$/i.test(f.name)) {
+                    if (f.type.startsWith('text/') || /\.(txt|md|csv|json|js|html|css|py|java|c|cpp|ts)$/i.test(f.name)) {
                         const text = await readFileAsText(f);
                         chatAttachments.push({ name: f.name, type: f.type, dataUrl: null, text, isImage: false });
                     } else {
                         const dataUrl = await readFileAsDataURL(f);
                         chatAttachments.push({ name: f.name, type: f.type, dataUrl, text: null, isImage: false });
                     }
+                    renderChatAttachments();
                 } catch (err) { console.error(err); }
             }
-            attachmentsBusy = Math.max(0, attachmentsBusy - 1);
-            renderChatAttachments();
-            if (skippedByLimit) {
-                alert(pick(`Можно приложить не больше ${MAX_IMAGES} фото за раз.`, `You can attach up to ${MAX_IMAGES} photos at a time.`));
-            }
-        }
-
-        window.handleFileSelect = function(e) {
-            const files = Array.from(e.target.files || []);
-            e.target.value = '';
-            addFiles(files);
         };
-
-        // Вставка фото из буфера обмена (Ctrl+V / ⌘+V) — например, скриншота задачи
-        document.addEventListener('paste', function(e) {
-            const dt = e.clipboardData;
-            if (!dt) return;
-            // Обычный текст вставляется как всегда
-            if (Array.from(dt.types || []).indexOf('text/plain') !== -1) return;
-            const files = [];
-            Array.from(dt.items || []).forEach(it => {
-                if (it.kind === 'file' && /^image\//.test(it.type)) {
-                    const f = it.getAsFile();
-                    if (f) files.push(new File([f], 'screenshot-' + Date.now() + (f.type === 'image/png' ? '.png' : '.jpg'), { type: f.type }));
-                }
-            });
-            if (!files.length) return; // обычный текст вставляется как всегда
-            e.preventDefault();
-            if (currentTab !== 'ai') switchTab('ai');
-            addFiles(files);
-            const inp = document.getElementById('user-input');
-            if (inp) inp.focus();
-        });
-
-        // Перетаскивание фото прямо в чат
-        (function initChatDropZone() {
-            const zone = document.getElementById('view-ai');
-            if (!zone) return;
-            let depth = 0;
-            const highlight = on => {
-                ['ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-dark-900'].forEach(c => zone.classList.toggle(c, on));
-            };
-            zone.addEventListener('dragenter', e => { e.preventDefault(); depth++; highlight(true); });
-            zone.addEventListener('dragover', e => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; });
-            zone.addEventListener('dragleave', e => { e.preventDefault(); depth = Math.max(0, depth - 1); if (!depth) highlight(false); });
-            zone.addEventListener('drop', e => {
-                e.preventDefault();
-                depth = 0;
-                highlight(false);
-                const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []);
-                if (files.length) addFiles(files);
-            });
-            // Чтобы браузер не открывал фото вместо страницы
-            ['dragover', 'drop'].forEach(ev => document.addEventListener(ev, e => {
-                if (e.dataTransfer && Array.from(e.dataTransfer.types || []).indexOf('Files') !== -1) e.preventDefault();
-            }));
-        })();
 
         function renderChatAttachments() {
             const box = document.getElementById('chat-attachments');
             if (!box) return;
-            const items = chatAttachments.map((a, i) => {
-                if (a.isImage) {
-                    return `<div class="relative"><img src="${a.dataUrl}" alt="${escapeHtml(a.name)}" class="h-16 w-16 object-cover rounded-lg border border-dark-600"><button type="button" onclick="removeAttachment(${i})" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button></div>`;
-                }
+            box.innerHTML = chatAttachments.map((a, i) => {
                 return `<div class="flex items-center gap-2 bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-gray-200"><i class="fa-solid fa-file"></i><span class="max-w-[120px] truncate">${escapeHtml(a.name)}</span><button type="button" onclick="removeAttachment(${i})" class="text-gray-400 hover:text-red-400"><i class="fa-solid fa-xmark"></i></button></div>`;
-            });
-            if (attachmentsBusy > 0) {
-                items.unshift(`<div class="flex items-center gap-2 bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-gray-300"><i class="fa-solid fa-spinner fa-spin text-primary-light"></i><span>${pick('Обрабатываю фото…', 'Processing photo…')}</span></div>`);
-            }
-            box.innerHTML = items.join('');
+            }).join('');
         }
 
         window.removeAttachment = function(i) {
@@ -1792,18 +1673,6 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
         // Одинаковый вид «Думает...» для обычного и потокового запроса
         function loadingBubbleHTML() {
             return `<i class="fa-solid fa-spinner fa-spin text-primary-light"></i><span>${pick('Думает...', 'Thinking...')}</span>`;
-        }
-
-        // Старые фото из истории заменяем текстом: иначе каждый новый вопрос
-        // заново отправляет все предыдущие снимки и ответ приходит заметно медленнее.
-        function stripOldImages() {
-            for (let i = 1; i < chatHistory.length - 1; i++) {
-                const m = chatHistory[i];
-                if (Array.isArray(m.content)) {
-                    const texts = m.content.filter(p => p && p.type === 'text' && p.text).map(p => p.text).join('\n');
-                    m.content = texts ? texts + '\n[фото уже разобрано]' : '[фото уже разобрано]';
-                }
-            }
         }
 
         // Потоковый ответ (chat-stream): текст печатается по мере генерации,
@@ -1904,20 +1773,9 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
             container.appendChild(loadingDiv);
             container.scrollTop = container.scrollHeight;
 
-            // Формируем content для API: текст + изображения (vision) если есть
-            const images = attachments.filter(a => a.isImage);
-            let userContent;
-            if (images.length) {
-                const parts = [];
-                if (fullPrompt) parts.push({ type: 'text', text: fullPrompt });
-                images.forEach(a => parts.push({ type: 'image_url', image_url: { url: a.dataUrl } }));
-                userContent = parts;
-            } else {
-                userContent = fullPrompt;
-            }
+            // Работаем только с текстом — это заметно быстрее
+            const userContent = fullPrompt;
             chatHistory.push({ role: "user", content: userContent });
-            // Старые фото больше не отправляем — запрос становится намного легче
-            stripOldImages();
 
             if (chatHistory.length > 5) {
                 chatHistory.splice(1, 2); 
@@ -1952,11 +1810,10 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                            model: (images && images.length) ? VISION_MODEL : GROQ_MODEL,
+                            model: GROQ_MODEL,
                             messages: chatHistory,
-                            // 8 192 токенов достаточно для ответа в чате, и такой лимит
-                            // не заставляет модель «разгоняться» на длинную генерацию
-                            max_tokens: (images && images.length) ? VISION_MAX_TOKENS : TEXT_MAX_TOKENS
+                            // Короткий лимит = быстрее генерация
+                            max_tokens: TEXT_MAX_TOKENS
                         })
                     });
 

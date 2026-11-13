@@ -116,14 +116,6 @@ function toGeminiParts(content) {
         if (!p || typeof p !== 'object') return;
         if (p.type === 'text' && p.text) {
             parts.push({ text: String(p.text) });
-        } else if (p.type === 'image_url' && p.image_url && p.image_url.url) {
-            const url = String(p.image_url.url);
-            const m = /^data:([^;,]+);base64,([\s\S]+)$/.exec(url);
-            if (m) {
-                parts.push({ inline_data: { mime_type: m[1], data: m[2] } });
-            } else if (/^https?:\/\//i.test(url)) {
-                parts.push({ file_data: { file_uri: url, mime_type: guessMime(url) } });
-            }
         }
     });
     return parts;
@@ -302,11 +294,6 @@ exports.handler = async function (event) {
                 if (!p || typeof p !== 'object') return;
                 if (p.type === 'text') {
                     parts.push({ type: 'text', text: String(p.text || '').slice(0, MAX_CONTENT) });
-                } else if (p.type === 'image_url' && p.image_url && p.image_url.url) {
-                    const url = String(p.image_url.url);
-                    if (/^data:image\//i.test(url) || /^https?:\/\//i.test(url)) {
-                        parts.push({ type: 'image_url', image_url: { url: url } });
-                    }
                 }
             });
             return parts.length ? parts : '';
@@ -335,10 +322,6 @@ exports.handler = async function (event) {
     const requested = parseInt(payload.max_tokens, 10);
     let maxTokens = Math.min(Math.max(isNaN(requested) ? 4096 : requested, 1), MAX_TOKENS);
 
-    const hasImages = cleaned.some(function (m) {
-        return Array.isArray(m.content) && m.content.some(function (p) { return p.type === 'image_url'; });
-    });
-
     // --- Основной путь: Gemini (с перебором моделей) ---
     let lastError = null;
 
@@ -359,11 +342,9 @@ exports.handler = async function (event) {
     if (GROQ_API_KEY) {
         let groqModel = GROQ_MODELS.indexOf(String(payload.model)) !== -1
             ? String(payload.model)
-            : (hasImages ? 'qwen/qwen3.8-27b' : GROQ_MODELS[0]);
+            : GROQ_MODELS[0];
 
         let groqMax = maxTokens;
-        const cap = MODEL_MAX_TOKENS[groqModel];
-        if (cap) groqMax = Math.min(groqMax, cap);
 
         try {
             const r = await callGroq({ model: groqModel, messages: cleaned, max_tokens: groqMax });

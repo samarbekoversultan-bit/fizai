@@ -50,19 +50,6 @@ function toGeminiParts(content) {
         if (!p || typeof p !== 'object') return;
         if (p.type === 'text' && p.text) {
             parts.push({ text: String(p.text) });
-        } else if (p.type === 'image_url' && p.image_url && p.image_url.url) {
-            const url = String(p.image_url.url);
-            const m = /^data:([^;,]+);base64,([\s\S]+)$/.exec(url);
-            if (m) {
-                parts.push({ inline_data: { mime_type: m[1], data: m[2] } });
-            } else if (/^https?:\/\//i.test(url)) {
-                const clean = url.split('?')[0].toLowerCase();
-                const mime = clean.endsWith('.png') ? 'image/png'
-                    : clean.endsWith('.webp') ? 'image/webp'
-                    : clean.endsWith('.gif') ? 'image/gif'
-                    : 'image/jpeg';
-                parts.push({ file_data: { file_uri: url, mime_type: mime } });
-            }
         }
     });
     return parts;
@@ -109,11 +96,6 @@ function cleanContent(c) {
             if (!p || typeof p !== 'object') return;
             if (p.type === 'text') {
                 parts.push({ type: 'text', text: String(p.text || '').slice(0, MAX_CONTENT) });
-            } else if (p.type === 'image_url' && p.image_url && p.image_url.url) {
-                const url = String(p.image_url.url);
-                if (/^data:image\//i.test(url) || /^https?:\/\//i.test(url)) {
-                    parts.push({ type: 'image_url', image_url: { url: url } });
-                }
             }
         });
         return parts.length ? parts : '';
