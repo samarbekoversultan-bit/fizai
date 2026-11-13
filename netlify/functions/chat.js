@@ -12,24 +12,29 @@
 
 const https = require('https');
 
+// Одно TLS-соединение на несколько запросов — экономит ~100–200 мс на каждом
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 16 });
+
 const GEMINI_API_KEY = String(process.env.GEMINI_API_KEY || '').trim();
 const GROQ_API_KEY = String(process.env.GROQ_API_KEY || '').trim();
 
-// Основная модель Gemini + запасные: у Gemini быстрые ответы 503 «high demand»
-// и подвисания, поэтому модель можно поменять без правки кода — переменной GEMINI_MODEL.
-const GEMINI_MODEL = String(process.env.GEMINI_MODEL || 'gemini-flash-lite-latest').trim();
-const GEMINI_FALLBACKS = ['gemini-3.8-flash'];
+// Основная модель Gemini + запасные: у Gemini бывают ответы 503 «high demand»
+const GEMINI_MODEL = String(process.env.GEMINI_MODEL || 'gemini-3.8-flash').trim();
+const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-flash-lite-latest'];
 
-// Netlify обрывает синхронную функцию примерно на 10 секундах,
-// поэтому бюджет на все попытки — меньше этого лимита.
-const GEMINI_BUDGET_MS = 8500;
-const GEMINI_ATTEMPT_MS = 5000;
+// «Размышления» Gemini — главная причина долгого ожидания.
+// 0 = отвечать сразу, без скрытых рассуждений (можно изменить в Netlify:
+// GEMINI_THINKING_BUDGET = 0).
+const GEMINI_THINKING_BUDGET = (function () {
+    const n = parseInt(process.env.GEMINI_THINKING_BUDGET, 10);
+    return isNaN(n) ? 0 : Math.max(0, n);
+})();
 
 // Ограничения, чтобы сайтом не пользовались как бесплатным ИИ-прокси
 const MAX_MESSAGES = 20;
 const MAX_CONTENT = 8000;   // символов в одном сообщении
 const MAX_TOKENS = 65536;
-const GEMINI_MAX_TOKENS = 2048;  // держим ответ коротким, чтобы уложиться в лимит времени Netlify
+const GEMINI_MAX_TOKENS = 8192;  // столько хватает для ответа в чате, и lite-модели не ругаются
 
 // У vision-модели Groq свой потолок генерации
 const MODEL_MAX_TOKENS = {
@@ -66,6 +71,7 @@ function postJson(hostname, path, headers, payload, timeoutMs) {
             hostname: hostname,
             path: path,
             method: 'POST',
+            agent: httpsAgent,
             headers: Object.assign({
                 'Content-Type': 'application/json',
                 'Content-Length': data.length
@@ -123,7 +129,7 @@ function toGeminiParts(content) {
     return parts;
 }
 
-function toGeminiBody(messages, maxTokens) {
+function toGeminiBody(messages, maxTokens, thinkingBudget) {
     const systemParts = [];
     const contents = [];
 
@@ -144,25 +150,39 @@ function toGeminiBody(messages, maxTokens) {
     if (!contents.length) contents.push({ role: 'user', parts: [{ text: 'Привет!' }] });
     if (contents[0].role !== 'user') contents.unshift({ role: 'user', parts: [{ text: 'Продолжай.' }] });
 
+    const generationConfig = {
+        temperature: 0.7,
+        maxOutputTokens: maxTokens
+    };
+    // Отключённые «размышления» ускоряют ответ в несколько раз
+    if (thinkingBudget !== null && thinkingBudget !== undefined) {
+        generationConfig.thinkingConfig = { thinkingBudget: thinkingBudget };
+    }
+
     const body = {
         contents: contents,
-        generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: maxTokens
-        }
+        generationConfig: generationConfig
     };
     if (systemParts.length) body.systemInstruction = { parts: systemParts };
     return body;
 }
 
-async function callGemini(model, messages, maxTokens, timeoutMs) {
-    const r = await postJson(
+function callGeminiOnce(model, messages, maxTokens, thinkingBudget) {
+    return postJson(
         GEMINI_HOST,
         '/v1beta/models/' + encodeURIComponent(model) + ':generateContent',
         { 'x-goog-api-key': GEMINI_API_KEY },
-        toGeminiBody(messages, maxTokens),
-        timeoutMs
+        toGeminiBody(messages, maxTokens, thinkingBudget)
     );
+}
+
+async function callGemini(model, messages, maxTokens) {
+    let r = await callGeminiOnce(model, messages, maxTokens, GEMINI_THINKING_BUDGET);
+
+    // Не все модели понимают thinkingConfig — если 400, повторяем без него
+    if (r.status === 400) {
+        r = await callGeminiOnce(model, messages, maxTokens, null);
+    }
 
     let data = null;
     try { data = JSON.parse(r.body || '{}'); } catch (e) { data = null; }
@@ -324,17 +344,9 @@ exports.handler = async function (event) {
 
     if (GEMINI_API_KEY) {
         const chain = [GEMINI_MODEL].concat(GEMINI_FALLBACKS.filter(function (m) { return m !== GEMINI_MODEL; }));
-        const started = Date.now();
         for (let i = 0; i < chain.length; i++) {
-            const left = GEMINI_BUDGET_MS - (Date.now() - started);
-            if (left < 1500) break;
             try {
-                const text = await callGemini(
-                    chain[i],
-                    cleaned,
-                    Math.min(maxTokens, GEMINI_MAX_TOKENS),
-                    Math.min(GEMINI_ATTEMPT_MS, left)
-                );
+                const text = await callGemini(chain[i], cleaned, Math.min(maxTokens, GEMINI_MAX_TOKENS));
                 return send(200, openAiLike(text, chain[i], 'gemini'));
             } catch (e) {
                 lastError = e;
@@ -345,7 +357,7 @@ exports.handler = async function (event) {
 
     // --- Резерв: Groq (если ключ ещё не удалён из Netlify) ---
     if (GROQ_API_KEY) {
-        const groqModel = GROQ_MODELS.indexOf(String(payload.model)) !== -1
+        let groqModel = GROQ_MODELS.indexOf(String(payload.model)) !== -1
             ? String(payload.model)
             : (hasImages ? 'qwen/qwen3.8-27b' : GROQ_MODELS[0]);
 
@@ -368,9 +380,7 @@ exports.handler = async function (event) {
     }
 
     const status = lastError && lastError.status ? lastError.status : 502;
-    let message = lastError && lastError.message ? lastError.message : 'ИИ временно недоступен';
-    if (status === 503 || status === 429) {
-        message = 'ИИ сейчас перегружен. Подождите 10–20 секунд и отправьте вопрос ещё раз.';
-    }
-    return send(status, { error: { message: message } });
+    return send(status, {
+        error: { message: lastError && lastError.message ? lastError.message : 'ИИ временно недоступен' }
+    });
 };
