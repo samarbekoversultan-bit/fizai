@@ -278,7 +278,7 @@ export default async function handler(req) {
     }
 
     const requested = parseInt(payload.max_tokens, 10);
-    const maxTokens = Math.min(Math.max(isNaN(requested) ? 4096 : requested, 1), MAX_TOKENS);
+    const maxTokens = Math.min(Math.max(isNaN(requested) ? 2048 : requested, 1), MAX_TOKENS);
 
     let upstream;
     try {

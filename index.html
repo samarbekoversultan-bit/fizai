@@ -357,7 +357,7 @@
         const GROQ_MODEL = "openai/gpt-oss-20b";
         // Фото временно отключены — работаем только с текстом, это заметно быстрее.
         // Короткий лимит ответа = быстрее генерация и меньше шансов на обрыв.
-        const TEXT_MAX_TOKENS = 4096;
+        const TEXT_MAX_TOKENS = 2048;
 
         // «Прогреваем» серверные функции, когда пользователь открыл чат:
         // первый вопрос не будет ждать холодного старта функции.
@@ -1473,16 +1473,15 @@
         window.restartQuiz = function() { startQuiz(); };
 
         function systemPrompt() {
-            const ru = `Ты — FizAI, умный репетитор-помощник для школьников и студентов. Ты помогаешь со всеми предметами и вопросами: физика, математика, химия, биология, история, языки, программирование, домашние задания и любые другие темы. Твоя цель — чтобы ученик понял тему и сам справился с заданием. Всегда отвечай на русском языке (или на языке вопроса), дружелюбно и простым языком. Ты можешь разбирать задачи, объяснять темы, проверять решения, помогать с кодом, переводами, письмами и любыми другими вопросами. Если прислали фото или файл — опиши, что на нём, и помоги разобраться.
+            const ru = `Ты — FizAI, репетитор-помощник для школьников и студентов. Помогаешь со всеми предметами и вопросами (физика, математика, химия, биология, история, языки, программирование, домашние задания и др.). Цель — чтобы ученик понял тему и сам справился. Отвечай на языке вопроса, дружелюбно и просто.
 
-Главные правила:
-1. Помогай со всеми предметами и вопросами: объясняй темы, разбирай задачи, проверяй решения, помогай с кодом, переводами и любыми другими вопросами. Если просят решение — можешь дать его с подробным объяснением, но всегда объясняй ход мыслей, чтобы ученик понял.
-2. Объясняй просто и понятно, с примерами из жизни. Формулы записывай простыми символами (F = m · a) и объясняй, что означает каждая буква.
-3. Если прислали задачу — разбери её: к какой теме относится, какие идеи нужны, предложи план решения. Если нужно, покажи решение по шагам с пояснениями.
-4. Если прислали своё решение — проверь его, укажи ошибки и объясни, как исправить.
-5. Если прислали фото или файл — опиши, что на нём, и помоги разобраться с содержимым.
-6. Отвечай по существу, дружелюбно. Можно отвечать длиннее, если вопрос сложный, но без воды.
-7. Пиши обычным текстом: никакого Markdown и LaTeX, не ставь символы #, *, _, $, обратные кавычки, фигурные скобки и слэши. Формулы записывай простыми символами, например F = m · a, v = S / t. Шаги нумеруй цифрой с точкой.`;
+Правила:
+1. Объясняй темы, разбирай задачи, проверяй решения, помогай с кодом и переводами. Решения давай с пояснением хода мыслей.
+2. Формулы пиши простыми символами (F = m · a), объясняй каждую букву. Примеры из жизни.
+3. Задачу разбирай: тема, идеи, план, решение по шагам.
+4. Решение ученика проверяй, указывай ошибки и как исправить.
+5. Отвечай по существу, без воды. Длиннее — только если вопрос сложный.
+6. Пиши обычным текстом: без Markdown и LaTeX, без символов # * _ $ \` { } /. Формулы: F = m · a. Шаги нумеруй «1. ».`;
             if (currentLang === 'en') return ru + `
 
 Interface language: English. The whole app is now in English, so always answer the student in English — friendly and in simple language. You help with all subjects and questions. Keep following all the rules above (including: no Markdown, formulas as plain text like F = m · a).`;
@@ -1495,6 +1494,9 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
             { role: "system", content: systemPrompt() }
         ];
         let chatAttachments = []; // { name, type, dataUrl, text, isImage }
+        // Кэш ответов: одинаковый вопрос не гоняем по сети повторно
+        const answerCache = new Map();
+        const ANSWER_CACHE_LIMIT = 30;
 
         // Очищает LaTeX-выражение до читаемого простого текста
         function latexToPlain(expr) {
@@ -1582,6 +1584,7 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
             chat.dataset.greeting = 'cleared';
             chat.innerHTML = clearedHTML();
             chatHistory.splice(1);
+            answerCache.clear();
         }
 
         window.sendPresetPrompt = function(text) {
@@ -1777,6 +1780,17 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
             const userContent = fullPrompt;
             chatHistory.push({ role: "user", content: userContent });
 
+            // Кэш: если такой вопрос уже задавали — отвечаем мгновенно, без сети
+            // Ключ — текст вопроса (чтобы повторный вопрос не гонял сеть)
+            const cacheKey = String(userContent).trim().toLowerCase();
+            if (answerCache.has(cacheKey)) {
+                document.getElementById(loadingId)?.remove();
+                const cached = answerCache.get(cacheKey);
+                appendMessage('ai', cached);
+                chatHistory.push({ role: "assistant", content: cached });
+                return;
+            }
+
             if (chatHistory.length > 5) {
                 chatHistory.splice(1, 2); 
             }
@@ -1882,6 +1896,12 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
             if (success) {
                 if (!streamed) appendMessage('ai', aiText);
                 chatHistory.push({ role: "assistant", content: aiText });
+                // Сохраняем в кэш для мгновенного повтора
+                if (answerCache.size >= ANSWER_CACHE_LIMIT) {
+                    const firstKey = answerCache.keys().next().value;
+                    answerCache.delete(firstKey);
+                }
+                answerCache.set(cacheKey, aiText);
             } else {
                 chatHistory.pop();
                 appendMessage('ai', pick('Не удалось получить ответ: сервер ИИ недоступен. Если вы открыли сайт локально или функция не задеплоена, ИИ не работает. Опубликуйте папку целиком (вместе с netlify/functions) на Netlify.', 'Could not get an answer: the AI server is unavailable. If you opened the site locally or the function is not deployed, AI will not work. Publish the whole folder (including netlify/functions) to Netlify.'));

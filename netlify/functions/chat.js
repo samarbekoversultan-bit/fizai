@@ -320,7 +320,7 @@ exports.handler = async function (event) {
     }
 
     const requested = parseInt(payload.max_tokens, 10);
-    let maxTokens = Math.min(Math.max(isNaN(requested) ? 4096 : requested, 1), MAX_TOKENS);
+    let maxTokens = Math.min(Math.max(isNaN(requested) ? 2048 : requested, 1), MAX_TOKENS);
 
     // --- Основной путь: Gemini (с перебором моделей) ---
     let lastError = null;
