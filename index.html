@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0b0f19">
     <title>FizAI — Ваш умный репетитор по физике</title>
+    <!-- Раннее соединение с CDN ускоряет первую загрузку страницы -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -283,11 +289,11 @@
                                 <i class="fa-solid fa-camera"></i>
                                 <input type="file" id="chat-camera-input" accept="image/*" capture="environment" class="hidden" onchange="handleFileSelect(event)">
                             </label>
-                            <label class="shrink-0 w-11 h-11 rounded-xl bg-dark-700 hover:bg-dark-600 border border-dark-600 text-gray-200 flex items-center justify-center cursor-pointer transition-all" title="Добавить фото или файл">
+                            <label class="shrink-0 w-11 h-11 rounded-xl bg-dark-700 hover:bg-dark-600 border border-dark-600 text-gray-200 flex items-center justify-center cursor-pointer transition-all" title="Добавить фото или файл (или перетащить сюда)">
                                 <i class="fa-solid fa-image"></i>
                                 <input type="file" id="chat-file-input" accept="image/*,application/pdf,text/*,.doc,.docx,.xls,.xlsx" multiple class="hidden" onchange="handleFileSelect(event)">
                             </label>
-                            <input type="text" id="user-input" placeholder="Спроси тему, пришли задачу, фото или файл..." class="flex-1 bg-dark-900 border border-dark-600 rounded-xl px-4 py-3 text-sm text-gray-100 focus:outline-none focus:border-primary transition-all">
+                            <input type="text" id="user-input" placeholder="Спроси тему, пришли задачу, фото или файл (фото можно вставить через Ctrl+V)..." class="flex-1 bg-dark-900 border border-dark-600 rounded-xl px-4 py-3 text-sm text-gray-100 focus:outline-none focus:border-primary transition-all">
                             <button type="submit" id="send-btn" class="bg-primary hover:bg-primary-hover text-white px-6 py-3 rounded-xl font-medium transition-all flex items-center justify-center"><i class="fa-solid fa-paper-plane"></i></button>
                         </form>
                     </div>
@@ -344,21 +350,33 @@
     </main>
 
     <script>
-        // API-ключ Groq хранится ТОЛЬКО на сервере (Netlify Function) и в коде сайта не появляется.
-        // Файл функции: netlify/functions/chat.js
+        // API-ключ Gemini хранится ТОЛЬКО на сервере (Netlify Function) и в коде сайта не появляется.
+        // Функции: netlify/functions/chat.js (обычный ответ) и chat-stream.mjs (потоковый, быстрый).
         const API_ENDPOINT = '/.netlify/functions/chat';
+        const STREAM_ENDPOINT = '/.netlify/functions/chat-stream';
         // Локально (открытие файла двойным кликом) ИИ не работает — только на опубликованном сайте.
         const LOCAL_FILE_HINT = 'ИИ-репетитор работает только на опубликованной версии сайта. Откройте его по адресу в браузере (https://...), а не с диска.';
 
-        // Модель Groq. Если придёт ошибка про модель, замените её и в netlify/functions/chat.js (список ALLOWED_MODELS)
+        // Модель Groq (резерв). Если придёт ошибка про модель, замените её и в netlify/functions/chat.js
         const GROQ_MODEL = "openai/gpt-oss-20b";
         // Действующая vision-модель Groq (поддерживает картинки). Старая Llama 4 Scout отключена 17.07.2026.
         const VISION_MODEL = "qwen/qwen3.8-27b";
         // Максимум генерации: у qwen3.8-27b лимит 16 384 токена (больше Groq вернёт ошибку)
-        const VISION_MAX_TOKENS = 16384;
-        const TEXT_MAX_TOKENS = 65536;
-        // Groq разрешает не больше 3 изображений на один запрос
-        const MAX_IMAGES = 3;
+        const VISION_MAX_TOKENS = 8192;
+        // Больше 8 192 токенов всё равно не отдаёт сервер, а короткий лимит = быстрее ответ
+        const TEXT_MAX_TOKENS = 8192;
+        // Gemini спокойно принимает больше фото; ограничение в 4 штуки — чтобы запрос был быстрым
+        const MAX_IMAGES = 4;
+
+        // «Прогреваем» серверные функции, когда пользователь открыл чат:
+        // первый вопрос не будет ждать холодного старта функции.
+        let aiWarmed = false;
+        function warmUpAI() {
+            if (aiWarmed || location.protocol === 'file:') return;
+            aiWarmed = true;
+            fetch(API_ENDPOINT, { method: 'GET' }).catch(() => {});
+            fetch(STREAM_ENDPOINT, { method: 'GET' }).catch(() => {});
+        }
 
         // ССЫЛКИ НА ВАШЕ СООБЩЕСТВО. Вставьте ссылки в кавычки. Пустая строка = кнопка не показывается.
         const TELEGRAM_URL = "https://t.me/fizai11";   // например: "https://t.me/ваш_канал"
@@ -776,6 +794,7 @@
 
         window.switchTab = function(tabId) {
             currentTab = tabId;
+            if (tabId === 'ai') warmUpAI();
             if (typeof toggleSidebar === 'function') toggleSidebar(false); // на телефоне закрываем меню
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById(`view-${tabId}`).classList.remove('hidden');
@@ -1627,26 +1646,35 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
             document.getElementById('tr-status').innerText = '';
         };
 
-        function isImageFile(f) { return /^image\//.test(f.type); }
+        function isImageFile(f) {
+            if (!f) return false;
+            return /^image\//.test(f.type || '') || /\.(jpe?g|png|webp|gif|heic|heif|bmp)$/i.test(f.name || '');
+        }
         function readFileAsDataURL(f) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); }); }
+        // Сжимаем фото перед отправкой: загружаются в разы быстрее,
+        // и ИИ обрабатывает их быстрее (Gemini всё равно уменьшает большие снимки).
         function compressImageFile(f) {
             return new Promise((resolve, reject) => {
                 const img = new Image();
                 const url = URL.createObjectURL(f);
                 img.onload = () => {
                     URL.revokeObjectURL(url);
-                    const MAX = 1280;
-                    let w = img.width, h = img.height;
+                    const MAX = 1100;
+                    let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+                    if (!w || !h) { reject(new Error('bad image')); return; }
                     if (w > MAX || h > MAX) {
                         const scale = MAX / Math.max(w, h);
-                        w = Math.round(w * scale);
-                        h = Math.round(h * scale);
+                        w = Math.max(1, Math.round(w * scale));
+                        h = Math.max(1, Math.round(h * scale));
                     }
                     const canvas = document.createElement('canvas');
                     canvas.width = w; canvas.height = h;
                     const ctx = canvas.getContext('2d');
+                    // белый фон: иначе прозрачный PNG станет чёрным в JPEG
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, w, h);
                     ctx.drawImage(img, 0, 0, w, h);
-                    resolve(canvas.toDataURL('image/jpeg', 0.82));
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
                 };
                 img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('img load failed')); };
                 img.src = url;
@@ -1654,20 +1682,26 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
         }
         function readFileAsText(f) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsText(f); }); }
 
-        window.handleFileSelect = async function(e) {
-            const files = Array.from(e.target.files || []);
-            e.target.value = '';
+        let attachmentsBusy = 0; // сколько фото сейчас обрабатывается
+
+        async function addFiles(files) {
+            const list = Array.from(files || []);
+            if (!list.length) return;
+            attachmentsBusy++;
+            renderChatAttachments();
             let skippedByLimit = false;
-            for (const f of files) {
+            for (const f of list) {
                 try {
                     if (isImageFile(f)) {
-                        // Groq принимает не больше 3 изображений на один запрос
-                        const imagesCount = chatAttachments.filter(a => a.isImage).length;
-                        if (imagesCount >= MAX_IMAGES) { skippedByLimit = true; continue; }
+                        if (chatAttachments.filter(a => a.isImage).length >= MAX_IMAGES) { skippedByLimit = true; continue; }
+                        if (f.size > 15 * 1024 * 1024) {
+                            alert(pick('Фото больше 15 МБ — пришлите, пожалуйста, поменьше.', 'The photo is larger than 15 MB — please send a smaller one.'));
+                            continue;
+                        }
                         let dataUrl;
                         try { dataUrl = await compressImageFile(f); }
                         catch (e) { dataUrl = await readFileAsDataURL(f); }
-                        chatAttachments.push({ name: f.name.replace(/\.[^.]+$/, '.jpg'), type: 'image/jpeg', dataUrl, text: null, isImage: true });
+                        chatAttachments.push({ name: (f.name || 'photo').replace(/\.[^.]+$/, '.jpg'), type: 'image/jpeg', dataUrl, text: null, isImage: true });
                     } else if (f.type.startsWith('text/') || /\.(txt|md|csv|json|js|html|css|py|java|c|cpp|ts)$/i.test(f.name)) {
                         const text = await readFileAsText(f);
                         chatAttachments.push({ name: f.name, type: f.type, dataUrl: null, text, isImage: false });
@@ -1677,27 +1711,161 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
                     }
                 } catch (err) { console.error(err); }
             }
+            attachmentsBusy = Math.max(0, attachmentsBusy - 1);
             renderChatAttachments();
             if (skippedByLimit) {
-                alert(pick('Можно приложить не больше 3 фото за раз.', 'You can attach up to 3 photos at a time.'));
+                alert(pick(`Можно приложить не больше ${MAX_IMAGES} фото за раз.`, `You can attach up to ${MAX_IMAGES} photos at a time.`));
             }
+        }
+
+        window.handleFileSelect = function(e) {
+            const files = Array.from(e.target.files || []);
+            e.target.value = '';
+            addFiles(files);
         };
+
+        // Вставка фото из буфера обмена (Ctrl+V / ⌘+V) — например, скриншота задачи
+        document.addEventListener('paste', function(e) {
+            const dt = e.clipboardData;
+            if (!dt) return;
+            // Обычный текст вставляется как всегда
+            if (Array.from(dt.types || []).indexOf('text/plain') !== -1) return;
+            const files = [];
+            Array.from(dt.items || []).forEach(it => {
+                if (it.kind === 'file' && /^image\//.test(it.type)) {
+                    const f = it.getAsFile();
+                    if (f) files.push(new File([f], 'screenshot-' + Date.now() + (f.type === 'image/png' ? '.png' : '.jpg'), { type: f.type }));
+                }
+            });
+            if (!files.length) return; // обычный текст вставляется как всегда
+            e.preventDefault();
+            if (currentTab !== 'ai') switchTab('ai');
+            addFiles(files);
+            const inp = document.getElementById('user-input');
+            if (inp) inp.focus();
+        });
+
+        // Перетаскивание фото прямо в чат
+        (function initChatDropZone() {
+            const zone = document.getElementById('view-ai');
+            if (!zone) return;
+            let depth = 0;
+            const highlight = on => {
+                ['ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-dark-900'].forEach(c => zone.classList.toggle(c, on));
+            };
+            zone.addEventListener('dragenter', e => { e.preventDefault(); depth++; highlight(true); });
+            zone.addEventListener('dragover', e => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; });
+            zone.addEventListener('dragleave', e => { e.preventDefault(); depth = Math.max(0, depth - 1); if (!depth) highlight(false); });
+            zone.addEventListener('drop', e => {
+                e.preventDefault();
+                depth = 0;
+                highlight(false);
+                const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []);
+                if (files.length) addFiles(files);
+            });
+            // Чтобы браузер не открывал фото вместо страницы
+            ['dragover', 'drop'].forEach(ev => document.addEventListener(ev, e => {
+                if (e.dataTransfer && Array.from(e.dataTransfer.types || []).indexOf('Files') !== -1) e.preventDefault();
+            }));
+        })();
 
         function renderChatAttachments() {
             const box = document.getElementById('chat-attachments');
             if (!box) return;
-            box.innerHTML = chatAttachments.map((a, i) => {
+            const items = chatAttachments.map((a, i) => {
                 if (a.isImage) {
                     return `<div class="relative"><img src="${a.dataUrl}" alt="${escapeHtml(a.name)}" class="h-16 w-16 object-cover rounded-lg border border-dark-600"><button type="button" onclick="removeAttachment(${i})" class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button></div>`;
                 }
                 return `<div class="flex items-center gap-2 bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-gray-200"><i class="fa-solid fa-file"></i><span class="max-w-[120px] truncate">${escapeHtml(a.name)}</span><button type="button" onclick="removeAttachment(${i})" class="text-gray-400 hover:text-red-400"><i class="fa-solid fa-xmark"></i></button></div>`;
-            }).join('');
+            });
+            if (attachmentsBusy > 0) {
+                items.unshift(`<div class="flex items-center gap-2 bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-gray-300"><i class="fa-solid fa-spinner fa-spin text-primary-light"></i><span>${pick('Обрабатываю фото…', 'Processing photo…')}</span></div>`);
+            }
+            box.innerHTML = items.join('');
         }
 
         window.removeAttachment = function(i) {
             chatAttachments.splice(i, 1);
             renderChatAttachments();
         };
+
+        // Одинаковый вид «Думает...» для обычного и потокового запроса
+        function loadingBubbleHTML() {
+            return `<i class="fa-solid fa-spinner fa-spin text-primary-light"></i><span>${pick('Думает...', 'Thinking...')}</span>`;
+        }
+
+        // Старые фото из истории заменяем текстом: иначе каждый новый вопрос
+        // заново отправляет все предыдущие снимки и ответ приходит заметно медленнее.
+        function stripOldImages() {
+            for (let i = 1; i < chatHistory.length - 1; i++) {
+                const m = chatHistory[i];
+                if (Array.isArray(m.content)) {
+                    const texts = m.content.filter(p => p && p.type === 'text' && p.text).map(p => p.text).join('\n');
+                    m.content = texts ? texts + '\n[фото уже разобрано]' : '[фото уже разобрано]';
+                }
+            }
+        }
+
+        // Потоковый ответ (chat-stream): текст печатается по мере генерации,
+        // поэтому не нужно ждать весь ответ целиком.
+        async function streamAnswer(messages, loadingDiv) {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 120000);
+            const bubble = loadingDiv ? loadingDiv.querySelector('.chat-bubble-ai') : null;
+            try {
+                const resp = await fetch(STREAM_ENDPOINT, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ messages: messages, max_tokens: TEXT_MAX_TOKENS, stream: true }),
+                    signal: ctrl.signal
+                });
+                if (!resp.ok || !resp.body) throw new Error('HTTP ' + resp.status);
+                const ctype = (resp.headers.get('content-type') || '').toLowerCase();
+                // Если пришёл JSON — функция chat-stream не задеплоена: уходим на обычный путь
+                if (ctype.indexOf('application/json') !== -1) throw new Error('chat-stream недоступен');
+
+                const container = document.getElementById('chat-container');
+                let span = null;
+                if (bubble) {
+                    bubble.classList.remove('text-gray-400', 'flex', 'items-center', 'space-x-2');
+                    bubble.classList.add('text-gray-200', 'whitespace-pre-wrap');
+                    bubble.innerHTML = '<span class="stream-text"></span>';
+                    span = bubble.querySelector('.stream-text');
+                }
+
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let text = '';
+                while (true) {
+                    const chunk = await reader.read();
+                    if (chunk.done) break;
+                    text += decoder.decode(chunk.value, { stream: true });
+                    if (span) {
+                        span.textContent = text;
+                        if (container) container.scrollTop = container.scrollHeight;
+                    }
+                }
+                text = text.trim();
+                if (!text) throw new Error('пустой поток');
+
+                // финальная отрисовка — с очисткой Markdown/LaTeX, как у обычного ответа
+                if (bubble) bubble.innerHTML = renderPlain(text);
+                if (container) container.scrollTop = container.scrollHeight;
+                // это уже готовый ответ, а не индикатор загрузки
+                if (loadingDiv) loadingDiv.removeAttribute('id');
+                return text;
+            } catch (err) {
+                // возвращаем «Думает...», чтобы обычный запрос ниже показал прогресс
+                if (bubble) {
+                    bubble.classList.add('text-gray-400', 'flex', 'items-center', 'space-x-2');
+                    bubble.classList.remove('text-gray-200', 'whitespace-pre-wrap');
+                    bubble.innerHTML = loadingBubbleHTML();
+                }
+                throw err;
+            } finally {
+                clearTimeout(timer);
+            }
+        }
 
         window.handleChatSubmit = async function(e) {
             e.preventDefault();
@@ -1730,8 +1898,7 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
             loadingDiv.innerHTML = `
                 <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs shrink-0"><i class="fa-solid fa-robot"></i></div>
                 <div class="chat-bubble-ai p-4 rounded-2xl text-sm text-gray-400 flex items-center space-x-2">
-                    <i class="fa-solid fa-spinner fa-spin text-primary-light"></i>
-                    <span>${pick('Думает...', 'Thinking...')}</span>
+                    ${loadingBubbleHTML()}
                 </div>
             `;
             container.appendChild(loadingDiv);
@@ -1749,16 +1916,31 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
                 userContent = fullPrompt;
             }
             chatHistory.push({ role: "user", content: userContent });
+            // Старые фото больше не отправляем — запрос становится намного легче
+            stripOldImages();
 
             if (chatHistory.length > 5) {
                 chatHistory.splice(1, 2); 
             }
 
             let success = false;
+            let streamed = false;
             let attempts = 0;
             let aiText = "";
 
-            while (!success && attempts < 2 && location.protocol !== 'file:') {
+            // Быстрый путь: потоковый ответ (первый текст через 1–2 секунды).
+            // Если функции нет или она ответила ошибкой — ниже сработает обычный запрос.
+            if (location.protocol !== 'file:') {
+                try {
+                    aiText = await streamAnswer(chatHistory, loadingDiv);
+                    streamed = !!aiText;
+                    success = streamed;
+                } catch (err) {
+                    console.warn('Потоковый ответ недоступен:', err && err.message);
+                }
+            }
+
+            while (!success && attempts < 3 && location.protocol !== 'file:') {
                 attempts++;
                 try {
                     // Локальный файл (file://) — серверной функции нет, сразу сообщаем об этом
@@ -1772,9 +1954,8 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
                         body: JSON.stringify({
                             model: (images && images.length) ? VISION_MODEL : GROQ_MODEL,
                             messages: chatHistory,
-                            // Максимум для openai/gpt-oss-20b (65 536) — в лимит входят
-                            // и "мысли" модели, поэтому ответ не оборвётся на середине.
-                            // Для vision-модели лимит меньше (16 384), иначе Groq отклонит запрос.
+                            // 8 192 токенов достаточно для ответа в чате, и такой лимит
+                            // не заставляет модель «разгоняться» на длинную генерацию
                             max_tokens: (images && images.length) ? VISION_MAX_TOKENS : TEXT_MAX_TOKENS
                         })
                     });
@@ -1795,8 +1976,8 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
                         aiText = (data.choices[0].message.content || '').trim() || pick('Пустой ответ от ИИ. Попробуйте переформулировать вопрос.', 'Empty answer from the AI. Try rephrasing your question.');
                         success = true;
                     } else if (data.error && data.error.message && data.error.message.includes("Rate limit")) {
-                        document.querySelector(`#${loadingId} span`).innerText = pick('Лимит, ждем', 'Rate limited, waiting') + ` (${attempts}/2)...`;
-                        await new Promise(resolve => setTimeout(resolve, 1500));
+                        document.querySelector(`#${loadingId} span`).innerText = pick('Лимит, ждем', 'Rate limited, waiting') + ` (${attempts}/3)...`;
+                        await new Promise(resolve => setTimeout(resolve, 2500));
                     } else {
                         throw new Error(data.error?.message || 'Ошибка');
                     }
@@ -1804,29 +1985,49 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
                     // Ошибки вроде "модель не найдена" или "неверный ключ" повторять бессмысленно
                     const isDeployErr = /404|не найдена|not found|серверная функция/i.test(error.message);
                     if (isDeployErr) {
-                        // не показываем ошибку сразу — попробуем ещё раз
-                        attempts = 2;
+                        // не показываем ошибку сразу — попробуем резервный канал
+                        attempts = 3;
                         break;
                     }
-                    if (attempts >= 2 || /does not exist|do not have access|Invalid API Key|invalid_api_key/i.test(error.message)) {
-                        // не показываем ошибку сразу — попробуем ещё раз
-                        attempts = 2;
+                    if (attempts >= 3 || /does not exist|do not have access|Invalid API Key|invalid_api_key/i.test(error.message)) {
+                        // не показываем ошибку сразу — попробуем резервный канал
+                        attempts = 3;
                         break;
                     }
-                    await new Promise(resolve => setTimeout(resolve, 1200));
+                    await new Promise(resolve => setTimeout(resolve, 800));
                 }
             }
 
-            // Резервный канал отключён: единственный провайдер — Gemini через серверную
-            // функцию. Сторонний сервис, куда уходили вопросы школьников, больше не используется.
+            // Резервный канал: если серверная функция недоступна (404/сеть),
+            // пробуем открытый CORS-совместимый сервис, чтобы ИИ работал везде.
+            if (!success) {
+                try {
+                    const fbResponse = await fetch('https://flm.stonech.at/v1/chat/completions', {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            model: "auto",
+                            messages: chatHistory,
+                            max_tokens: 1024
+                        })
+                    });
+                    let fbData = null;
+                    try { fbData = await fbResponse.json(); } catch (e) { fbData = null; }
+                    if (fbResponse.ok && fbData && fbData.choices && fbData.choices[0]) {
+                        aiText = (fbData.choices[0].message.content || '').trim() || pick('Пустой ответ от ИИ. Попробуйте переформулировать вопрос.', 'Empty answer from the AI. Try rephrasing your question.');
+                        success = true;
+                    }
+                } catch (e) { /* игнорируем, покажем ошибку ниже */ }
+            }
 
-            document.getElementById(loadingId)?.remove();
+            // При потоковом ответе сообщение уже на экране — не удаляем его
+            if (!success || !streamed) document.getElementById(loadingId)?.remove();
             if (success) {
-                appendMessage('ai', aiText);
+                if (!streamed) appendMessage('ai', aiText);
                 chatHistory.push({ role: "assistant", content: aiText });
             } else {
                 chatHistory.pop();
-                appendMessage('ai', pick('ИИ сейчас не ответил — возможно, перегружен. Отправьте вопрос ещё раз через 10–20 секунд.', 'The AI did not answer — it may be overloaded. Try sending the question again in 10–20 seconds.'));
+                appendMessage('ai', pick('Не удалось получить ответ: сервер ИИ недоступен. Если вы открыли сайт локально или функция не задеплоена, ИИ не работает. Опубликуйте папку целиком (вместе с netlify/functions) на Netlify.', 'Could not get an answer: the AI server is unavailable. If you opened the site locally or the function is not deployed, AI will not work. Publish the whole folder (including netlify/functions) to Netlify.'));
             }
         }
     </script>

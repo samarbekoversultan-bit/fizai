@@ -1,15 +1,16 @@
 # Конфигурация Netlify
 # Папка для публикации — текущая (в ней index.html).
-# Примечание: файл netlify/functions/chat.js может отдаваться как обычный
-# статический файл, но ключа внутри него нет — он задаётся переменной
-# окружения GROQ_API_KEY в настройках сайта, поэтому ничего секретного не утекает.
+# Примечание: файлы netlify/functions/* могут отдаваться как обычные
+# статические файлы, но ключа внутри них нет — он задаётся переменной
+# окружения GEMINI_API_KEY в настройках сайта, поэтому ничего секретного не утекает.
 [build]
   publish = "."
   functions = "netlify/functions"
 
-# Версия Node для серверной функции (netlify/functions/chat.js)
+# Версия Node для серверных функций (chat.js и chat-stream.mjs).
+# Node 20 нужен для потоковых ответов Netlify Functions v2.
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
 
 [functions]
   directory = "netlify/functions"
