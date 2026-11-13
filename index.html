@@ -72,6 +72,9 @@
             #user-input { min-width: 0; }
         }
     </style>
+    <!-- Firebase SDK (для счётчика посетителей) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body class="bg-dark-900 text-gray-100 font-sans antialiased h-[100dvh] flex flex-col md:flex-row overflow-hidden">
 
@@ -224,6 +227,28 @@
                     </div>
                 </div>
 
+                <!-- Счётчик посетителей (Firebase) -->
+                <div class="bg-gradient-to-r from-emerald-500/10 via-dark-800 to-primary/10 border border-dark-600 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl glow-effect">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                        <div>
+                            <p class="text-base font-bold text-white">Посетители сайта</p>
+                            <p class="text-xs text-gray-400">Онлайн сейчас и всего посещений</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-6">
+                        <div class="text-center">
+                            <p class="text-2xl font-extrabold text-emerald-400" id="vc-online">0</p>
+                            <p class="text-[10px] uppercase tracking-wider text-gray-500">Онлайн</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-2xl font-extrabold text-primary-light" id="vc-total">0</p>
+                            <p class="text-[10px] uppercase tracking-wider text-gray-500">Всего</p>
+                        </div>
+                    </div>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                     <div onclick="switchTab('ai')" class="bg-dark-800 border border-dark-600 p-6 rounded-2xl cursor-pointer hover:border-primary/50 transition-all group">
                         <div class="w-12 h-12 rounded-xl bg-primary/20 text-primary-light flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
@@ -1923,6 +1948,67 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
                     (e.ctrlKey && !e.shiftKey && !e.altKey && ['u', 's'].indexOf(k) !== -1); // Ctrl+U / Ctrl+S
                 if (devTools) return block(e);
             }, true);
+        })();
+    </script>
+    <script>
+        // ===== Счётчик посетителей (Firebase Realtime Database) =====
+        // Настройка: создайте проект на https://console.firebase.google.com,
+        // включите Realtime Database и вставьте ваш firebaseConfig ниже.
+        const firebaseConfig = {
+            apiKey: "AIzaSyBrJcXHz5iWv6UR3KGJg9xkWFkzpjuRc2c",
+            authDomain: "fizai-838b9.firebaseapp.com",
+            databaseURL: "https://fizai-838b9-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "fizai-838b9",
+            storageBucket: "fizai-838b9.firebasestorage.app",
+            messagingSenderId: "781522616079",
+            appId: "1:781522616079:web:e4ac341ae831080bde487a",
+            measurementId: "G-74VPQE6SZW"
+        };
+
+        (function initVisitorCounter() {
+            if (typeof firebase === 'undefined') return;
+            try { firebase.initializeApp(firebaseConfig); } catch (e) { /* уже инициализировано */ }
+            const db = firebase.database();
+            const visitorId = (function () {
+                let id = localStorage.getItem('fizai_visitor_id');
+                if (!id) { id = 'v_' + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('fizai_visitor_id', id); }
+                return id;
+            })();
+
+            const totalRef = db.ref('stats/total');
+            const onlineRef = db.ref('stats/online/' + visitorId);
+
+            // Увеличиваем общий счётчик один раз за сессию
+            if (!sessionStorage.getItem('fizai_counted')) {
+                totalRef.transaction(function (cur) { return (cur || 0) + 1; });
+                sessionStorage.setItem('fizai_counted', '1');
+            }
+
+            // Heartbeat: записываем время последней активности
+            function heartbeat() { onlineRef.set(Date.now()); }
+            heartbeat();
+            setInterval(heartbeat, 30000);
+
+            // При закрытии вкладки удаляем запись
+            window.addEventListener('beforeunload', function () { onlineRef.remove(); });
+
+            // Слушаем общий счётчик
+            totalRef.on('value', function (snap) {
+                const el = document.getElementById('vc-total');
+                if (el) el.textContent = (snap.val() || 0).toLocaleString('ru-RU');
+            });
+
+            // Слушаем онлайн: считаем записи за последние 2 минуты
+            db.ref('stats/online').on('value', function (snap) {
+                const now = Date.now();
+                const data = snap.val() || {};
+                let count = 0;
+                Object.keys(data).forEach(function (k) {
+                    if (now - (data[k] || 0) < 120000) count++;
+                });
+                const el = document.getElementById('vc-online');
+                if (el) el.textContent = count.toLocaleString('ru-RU');
+            });
         })();
     </script>
 </body>
