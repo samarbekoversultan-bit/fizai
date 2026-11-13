@@ -19,8 +19,8 @@ const GEMINI_API_KEY = String(process.env.GEMINI_API_KEY || '').trim();
 const GROQ_API_KEY = String(process.env.GROQ_API_KEY || '').trim();
 
 // Основная модель Gemini + запасные: у Gemini бывают ответы 503 «high demand»
-const GEMINI_MODEL = String(process.env.GEMINI_MODEL || 'gemini-3.8-flash').trim();
-const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-flash-lite-latest'];
+const GEMINI_MODEL = String(process.env.GEMINI_MODEL || 'gemini-flash-lite-latest').trim();
+const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-2.0-flash-lite', 'gemini-2.0-flash'];
 
 // «Размышления» Gemini — главная причина долгого ожидания.
 // 0 = отвечать сразу, без скрытых рассуждений (можно изменить в Netlify:
@@ -333,7 +333,9 @@ exports.handler = async function (event) {
                 return send(200, openAiLike(text, chain[i], 'gemini'));
             } catch (e) {
                 lastError = e;
-                if (!e || !e.retryable) break;   // ошибка не временная — перебор не поможет
+                // Модель не найдена (404) — пробуем следующую в цепочке
+                if (e && e.status === 404) continue;
+                if (!e || !e.retryable) break;   // остальные ошибки не временные — перебор не поможет
             }
         }
     }

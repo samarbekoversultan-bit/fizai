@@ -1812,7 +1812,7 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
                 }
             }
 
-            while (!success && attempts < 3 && location.protocol !== 'file:') {
+            while (!success && attempts < 1 && location.protocol !== 'file:') {
                 attempts++;
                 try {
                     // Локальный файл (file://) — серверной функции нет, сразу сообщаем об этом
@@ -1848,7 +1848,7 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
                         success = true;
                     } else if (data.error && data.error.message && data.error.message.includes("Rate limit")) {
                         document.querySelector(`#${loadingId} span`).innerText = pick('Лимит, ждем', 'Rate limited, waiting') + ` (${attempts}/3)...`;
-                        await new Promise(resolve => setTimeout(resolve, 2500));
+                        await new Promise(resolve => setTimeout(resolve, 1000));
                     } else {
                         throw new Error(data.error?.message || 'Ошибка');
                     }
@@ -1867,28 +1867,6 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
                     }
                     await new Promise(resolve => setTimeout(resolve, 800));
                 }
-            }
-
-            // Резервный канал: если серверная функция недоступна (404/сеть),
-            // пробуем открытый CORS-совместимый сервис, чтобы ИИ работал везде.
-            if (!success) {
-                try {
-                    const fbResponse = await fetch('https://flm.stonech.at/v1/chat/completions', {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            model: "auto",
-                            messages: chatHistory,
-                            max_tokens: 1024
-                        })
-                    });
-                    let fbData = null;
-                    try { fbData = await fbResponse.json(); } catch (e) { fbData = null; }
-                    if (fbResponse.ok && fbData && fbData.choices && fbData.choices[0]) {
-                        aiText = (fbData.choices[0].message.content || '').trim() || pick('Пустой ответ от ИИ. Попробуйте переформулировать вопрос.', 'Empty answer from the AI. Try rephrasing your question.');
-                        success = true;
-                    }
-                } catch (e) { /* игнорируем, покажем ошибку ниже */ }
             }
 
             // При потоковом ответе сообщение уже на экране — не удаляем его

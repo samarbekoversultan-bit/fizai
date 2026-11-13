@@ -15,8 +15,8 @@
 // =====================================================================
 
 const GEMINI_API_KEY = String(process.env.GEMINI_API_KEY || '').trim();
-const GEMINI_MODEL = String(process.env.GEMINI_MODEL || 'gemini-3.8-flash').trim();
-const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-flash-lite-latest'];
+const GEMINI_MODEL = String(process.env.GEMINI_MODEL || 'gemini-flash-lite-latest').trim();
+const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-2.0-flash-lite', 'gemini-2.0-flash'];
 
 const parsedBudget = parseInt(process.env.GEMINI_THINKING_BUDGET, 10);
 const THINKING_BUDGET = isNaN(parsedBudget) ? 0 : Math.max(0, parsedBudget);
@@ -146,8 +146,10 @@ async function openGeminiStream(messages, maxTokens) {
                 // thinkingConfig не понят этой моделью — пробуем без него
                 if (resp.status === 400 && budget !== null) continue;
 
-                // 429/5xx — пробуем следующую модель; остальные ошибки тоже
-                // (например, 404 «модель не найдена») лечатся запасной моделью
+                // Модель не найдена (404) или временная ошибка — пробуем следующую
+                if (resp.status === 404 || resp.status === 429 || resp.status >= 500) continue;
+
+                // Остальные ошибки (400, 401, 403) — перебор не поможет
                 break;
             } catch (e) {
                 lastError = e;
