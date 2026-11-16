@@ -336,10 +336,30 @@
                     <div class="p-4 bg-dark-800 border-t border-dark-600 space-y-2">
                         <div id="chat-attachments" class="flex flex-wrap gap-2"></div>
                         <form id="chat-form" onsubmit="handleChatSubmit(event)" class="flex gap-2 items-end">
-                            <label class="shrink-0 w-11 h-11 rounded-xl bg-dark-700 hover:bg-dark-600 border border-dark-600 text-gray-200 flex items-center justify-center cursor-pointer transition-all" title="Прикрепить текстовый файл">
-                                <i class="fa-solid fa-paperclip"></i>
-                                <input type="file" id="chat-file-input" accept="text/*,application/pdf,.doc,.docx,.xls,.xlsx" multiple class="hidden" onchange="handleFileSelect(event)">
-                            </label>
+                            <div class="relative shrink-0">
+                                <button type="button" id="attach-btn" onclick="toggleAttachMenu(event)" title="Добавить фото, камеру или файл"
+                                        aria-label="Добавить фото, камеру или файл" aria-haspopup="menu" aria-expanded="false"
+                                        class="w-11 h-11 rounded-xl bg-dark-700 hover:bg-dark-600 border border-dark-600 text-gray-200 flex items-center justify-center transition-all">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                                <div id="attach-menu" role="menu" class="hidden absolute bottom-14 left-0 w-44 bg-dark-800 border border-dark-600 rounded-xl shadow-2xl z-50 overflow-hidden p-1">
+                                    <label class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-200 hover:bg-dark-700 cursor-pointer transition-all">
+                                        <i class="fa-solid fa-image text-accent w-4"></i>
+                                        <span>Фото</span>
+                                        <input type="file" id="chat-image-input" accept="image/*" multiple class="hidden" onchange="handleFileSelect(event)">
+                                    </label>
+                                    <label class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-200 hover:bg-dark-700 cursor-pointer transition-all">
+                                        <i class="fa-solid fa-camera text-primary-light w-4"></i>
+                                        <span>Камера</span>
+                                        <input type="file" id="chat-camera-input" accept="image/*" capture="environment" class="hidden" onchange="handleFileSelect(event)">
+                                    </label>
+                                    <label class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-200 hover:bg-dark-700 cursor-pointer transition-all">
+                                        <i class="fa-solid fa-paperclip text-emerald-400 w-4"></i>
+                                        <span>Файл</span>
+                                        <input type="file" id="chat-file-input" accept="text/*,application/pdf,.pdf,.txt,.md,.csv,.json" multiple class="hidden" onchange="handleFileSelect(event)">
+                                    </label>
+                                </div>
+                            </div>
                             <input type="text" id="user-input" placeholder="Спроси тему или пришли задачу..." class="flex-1 bg-dark-900 border border-dark-600 rounded-xl px-4 py-3 text-sm text-gray-100 focus:outline-none focus:border-primary transition-all">
                             <button type="submit" id="send-btn" class="bg-primary hover:bg-primary-hover text-white px-6 py-3 rounded-xl font-medium transition-all flex items-center justify-center"><i class="fa-solid fa-paper-plane"></i></button>
                         </form>
@@ -1750,17 +1770,92 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
         function readFileAsDataURL(f) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); }); }
         function readFileAsText(f) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsText(f); }); }
 
+        // Уменьшаем фото перед отправкой: с телефона снимки по 5–10 МБ,
+        // а серверная функция принимает ограниченный размер запроса.
+        async function compressImage(file) {
+            const original = await readFileAsDataURL(file);
+            try {
+                const img = await new Promise((res, rej) => {
+                    const i = new Image();
+                    i.onload = () => res(i);
+                    i.onerror = rej;
+                    i.src = original;
+                });
+                const MAX_SIDE = 1600;
+                const scale = Math.min(1, MAX_SIDE / Math.max(img.width, img.height));
+                const width = Math.max(1, Math.round(img.width * scale));
+                const height = Math.max(1, Math.round(img.height * scale));
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, width, height);
+                ctx.drawImage(img, 0, 0, width, height);
+                const jpeg = canvas.toDataURL('image/jpeg', 0.85);
+                return jpeg.length > 0 && jpeg.length < original.length ? jpeg : original;
+            } catch (e) {
+                return original;
+            }
+        }
+
+        window.toggleAttachMenu = function(event) {
+            if (event) event.stopPropagation();
+            const menu = document.getElementById('attach-menu');
+            const btn = document.getElementById('attach-btn');
+            if (menu) {
+                const isHidden = menu.classList.toggle('hidden');
+                if (btn) btn.setAttribute('aria-expanded', String(!isHidden));
+            }
+        };
+        function closeAttachMenu() {
+            const menu = document.getElementById('attach-menu');
+            const btn = document.getElementById('attach-btn');
+            if (menu) menu.classList.add('hidden');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+        }
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeAttachMenu();
+        });
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('attach-menu');
+            const btn = document.getElementById('attach-btn');
+            if (menu && !menu.contains(e.target) && btn && !btn.contains(e.target)) closeAttachMenu();
+        });
+
         window.handleFileSelect = async function(e) {
             const files = Array.from(e.target.files || []);
             e.target.value = '';
+            closeAttachMenu();
             for (const f of files) {
                 try {
-                    if (f.type.startsWith('text/') || /\.(txt|md|csv|json|js|html|css|py|java|c|cpp|ts)$/i.test(f.name)) {
+                    const isImage = /^image\/(png|jpe?g|webp|gif|heic|heif|bmp)$/i.test(f.type) || /\.(png|jpe?g|webp|gif|heic|heif|bmp)$/i.test(f.name);
+                    const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+                    const isText = f.type.startsWith('text/') || /\.(txt|md|csv|json|js|html|css|py|java|c|cpp|ts)$/i.test(f.name);
+
+                    if (isImage) {
+                        if (chatAttachments.filter(a => a.isImage).length >= 4) {
+                            alert(pick('Можно прикрепить не больше 4 фото за раз.', 'You can attach up to 4 photos at a time.'));
+                            break;
+                        }
+                        const dataUrl = await compressImage(f);
+                        if (dataUrl.length > 4.5 * 1024 * 1024) {
+                            alert(pick('Фото слишком большое. Попробуйте другое.', 'The photo is too large. Try another one.'));
+                            continue;
+                        }
+                        chatAttachments.push({ name: f.name, type: 'image/jpeg', dataUrl, text: null, isImage: true });
+                    } else if (isPdf) {
+                        if (f.size > 3 * 1024 * 1024) {
+                            alert(pick('PDF слишком большой (максимум 3 МБ).', 'The PDF is too large (3 MB maximum).'));
+                            continue;
+                        }
+                        const dataUrl = await readFileAsDataURL(f);
+                        chatAttachments.push({ name: f.name, type: 'application/pdf', dataUrl, text: null, isImage: false, isPdf: true });
+                    } else if (isText) {
                         const text = await readFileAsText(f);
                         chatAttachments.push({ name: f.name, type: f.type, dataUrl: null, text, isImage: false });
                     } else {
-                        const dataUrl = await readFileAsDataURL(f);
-                        chatAttachments.push({ name: f.name, type: f.type, dataUrl, text: null, isImage: false });
+                        alert(pick('Этот формат пока не поддерживается. Пришлите фото, PDF или текстовый файл.', 'This format is not supported yet. Send a photo, PDF or text file.'));
                     }
                     renderChatAttachments();
                 } catch (err) { console.error(err); }
@@ -1771,7 +1866,10 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
             const box = document.getElementById('chat-attachments');
             if (!box) return;
             box.innerHTML = chatAttachments.map((a, i) => {
-                return `<div class="flex items-center gap-2 bg-dark-700 border border-dark-600 rounded-lg px-3 py-1.5 text-xs text-gray-200"><i class="fa-solid fa-file"></i><span class="max-w-[120px] truncate">${escapeHtml(a.name)}</span><button type="button" onclick="removeAttachment(${i})" class="text-gray-400 hover:text-red-400"><i class="fa-solid fa-xmark"></i></button></div>`;
+                const preview = a.isImage
+                    ? `<img src="${a.dataUrl}" alt="" class="w-9 h-9 rounded object-cover border border-dark-600">`
+                    : `<i class="fa-solid fa-file"></i>`;
+                return `<div class="flex items-center gap-2 bg-dark-700 border border-dark-600 rounded-lg px-2 py-1.5 text-xs text-gray-200">${preview}<span class="max-w-[120px] truncate">${escapeHtml(a.name)}</span><button type="button" onclick="removeAttachment(${i})" class="text-gray-400 hover:text-red-400"><i class="fa-solid fa-xmark"></i></button></div>`;
             }).join('');
         }
 
@@ -1852,6 +1950,13 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
             const prompt = inputEl.value.trim();
             if (!prompt && !chatAttachments.length) return;
 
+            // Защита от слишком большого запроса: Netlify принимает ограниченный размер тела
+            const pendingSize = chatAttachments.reduce((n, a) => n + (a.dataUrl ? a.dataUrl.length : 0), 0);
+            if (pendingSize > 4.6 * 1024 * 1024) {
+                alert(pick('Вложения слишком большие. Уберите одно фото или файл и попробуйте снова.', 'Attachments are too large. Remove a photo or file and try again.'));
+                return;
+            }
+
             const attachments = chatAttachments.slice();
             chatAttachments = [];
             renderChatAttachments();
@@ -1862,8 +1967,14 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
             if (textFiles.length) {
                 fullPrompt += (fullPrompt ? '\n\n' : '') + textFiles.map(a => `--- Файл: ${a.name} ---\n${a.text}`).join('\n\n');
             }
-            if (!fullPrompt && attachments.some(a => a.isImage)) {
+            const imageAttachments = attachments.filter(a => a.isImage && a.dataUrl);
+            const pdfAttachments = attachments.filter(a => a.isPdf && a.dataUrl);
+            const binaryAttachments = imageAttachments.concat(pdfAttachments);
+            if (!fullPrompt && imageAttachments.length) {
                 fullPrompt = 'Что на этом изображении? Помоги разобраться.';
+            }
+            if (!fullPrompt && pdfAttachments.length) {
+                fullPrompt = 'Прочитай этот файл и помоги разобраться.';
             }
 
             inputEl.value = '';
@@ -1883,14 +1994,20 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
             container.appendChild(loadingDiv);
             container.scrollTop = container.scrollHeight;
 
-            // Работаем только с текстом — это заметно быстрее
-            const userContent = fullPrompt;
+            // Если есть фото или PDF — отправляем их в Gemini (обычный запрос поддерживает vision).
+            // Без вложений работаем только с текстом — это заметно быстрее.
+            const userContent = binaryAttachments.length
+                ? [{ type: 'text', text: fullPrompt }]
+                    .concat(imageAttachments.map(a => ({ type: 'image_url', image_url: { url: a.dataUrl } })))
+                    .concat(pdfAttachments.map(a => ({ type: 'file', file: { filename: a.name, file_data: a.dataUrl } })))
+                : fullPrompt;
             chatHistory.push({ role: "user", content: userContent });
+            const historyHasAttachments = chatHistory.some(m => Array.isArray(m.content));
 
             // Кэш: если такой вопрос уже задавали — отвечаем мгновенно, без сети
             // Ключ — текст вопроса (чтобы повторный вопрос не гонял сеть)
-            const cacheKey = String(userContent).trim().toLowerCase();
-            if (answerCache.has(cacheKey)) {
+            const cacheKey = String(fullPrompt).trim().toLowerCase() + (binaryAttachments.length ? '|file' : '');
+            if (!historyHasAttachments && answerCache.has(cacheKey)) {
                 document.getElementById(loadingId)?.remove();
                 const cached = answerCache.get(cacheKey);
                 appendMessage('ai', cached);
@@ -1909,7 +2026,7 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
 
             // Быстрый путь: потоковый ответ (первый текст через 1–2 секунды).
             // Если функции нет или она ответила ошибкой — ниже сработает обычный запрос.
-            if (location.protocol !== 'file:') {
+            if (location.protocol !== 'file:' && !historyHasAttachments) {
                 try {
                     aiText = await streamAnswer(chatHistory, loadingDiv);
                     streamed = !!aiText;
@@ -1981,12 +2098,14 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
             if (success) {
                 if (!streamed) appendMessage('ai', aiText);
                 chatHistory.push({ role: "assistant", content: aiText });
-                // Сохраняем в кэш для мгновенного повтора
-                if (answerCache.size >= ANSWER_CACHE_LIMIT) {
-                    const firstKey = answerCache.keys().next().value;
-                    answerCache.delete(firstKey);
+                // Сохраняем в кэш для мгновенного повтора (только текстовые вопросы)
+                if (!historyHasAttachments) {
+                    if (answerCache.size >= ANSWER_CACHE_LIMIT) {
+                        const firstKey = answerCache.keys().next().value;
+                        answerCache.delete(firstKey);
+                    }
+                    answerCache.set(cacheKey, aiText);
                 }
-                answerCache.set(cacheKey, aiText);
             } else {
                 chatHistory.pop();
                 appendMessage('ai', pick('Не удалось получить ответ: сервер ИИ недоступен. Если вы открыли сайт локально или функция не задеплоена, ИИ не работает. Опубликуйте папку целиком (вместе с netlify/functions) на Netlify.', 'Could not get an answer: the AI server is unavailable. If you opened the site locally or the function is not deployed, AI will not work. Publish the whole folder (including netlify/functions) to Netlify.'));

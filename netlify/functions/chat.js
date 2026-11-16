@@ -5,6 +5,7 @@
 //  Настройка: Site configuration → Environment variables →
 //      GEMINI_API_KEY = ключ из https://aistudio.google.com/apikey
 //      GEMINI_MODEL   = gemini-3.8-flash   (необязательно)
+//      GEMINI_VISION_MODEL = gemini-flash-latest (необязательно, для фото и PDF)
 //  Если GEMINI_API_KEY не задан, но задан GROQ_API_KEY — работает Groq.
 //
 //  Браузер обращается к /.netlify/functions/chat, ключ посетителям не виден.
@@ -21,6 +22,12 @@ const GROQ_API_KEY = String(process.env.GROQ_API_KEY || '').trim();
 // Основная модель Gemini + запасные: у Gemini бывают ответы 503 «high demand»
 const GEMINI_MODEL = String(process.env.GEMINI_MODEL || 'gemini-flash-lite-latest').trim();
 const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-2.0-flash-lite', 'gemini-2.0-flash'];
+
+// Для фото нужна модель со зрением (vision). Lite-модели тоже умеют,
+// но на всякий случай ставим полноценную flash-модель первой в цепочке.
+const GEMINI_VISION_MODEL = String(process.env.GEMINI_VISION_MODEL || 'gemini-flash-latest').trim();
+const GEMINI_VISION_FALLBACKS = ['gemini-2.0-flash', 'gemini-flash-lite-latest', 'gemini-2.0-flash-lite'];
+const MAX_IMAGE_DATA_URL = 5 * 1024 * 1024; // ~3,7 МБ самого файла — с запасом под лимит Netlify
 
 // «Размышления» Gemini — главная причина долгого ожидания.
 // 0 = отвечать сразу, без скрытых рассуждений (можно изменить в Netlify:
@@ -116,6 +123,30 @@ function toGeminiParts(content) {
         if (!p || typeof p !== 'object') return;
         if (p.type === 'text' && p.text) {
             parts.push({ text: String(p.text) });
+        } else if (p.type === 'image_url') {
+            // data:image/jpeg;base64,.... → inline_data для Gemini
+            const url = p.image_url && p.image_url.url ? String(p.image_url.url) : '';
+            const m = /^data:(image\/[a-z0-9.+-]+);base64,([a-z0-9+/=\s]+)$/i.exec(url);
+            if (m) {
+                parts.push({
+                    inline_data: {
+                        mime_type: m[1].toLowerCase(),
+                        data: m[2].replace(/\s+/g, '')
+                    }
+                });
+            }
+        } else if (p.type === 'file') {
+            // PDF целиком уходит в Gemini как inline_data
+            const url = p.file && p.file.file_data ? String(p.file.file_data) : '';
+            const m = /^data:application\/pdf;base64,([a-z0-9+/=\s]+)$/i.exec(url);
+            if (m) {
+                parts.push({
+                    inline_data: {
+                        mime_type: 'application/pdf',
+                        data: m[1].replace(/\s+/g, '')
+                    }
+                });
+            }
         }
     });
     return parts;
@@ -294,11 +325,34 @@ exports.handler = async function (event) {
                 if (!p || typeof p !== 'object') return;
                 if (p.type === 'text') {
                     parts.push({ type: 'text', text: String(p.text || '').slice(0, MAX_CONTENT) });
+                } else if (p.type === 'image_url') {
+                    const url = p.image_url && p.image_url.url ? String(p.image_url.url) : '';
+                    // Принимаем только картинки, встроенные как data URL, и не больше лимита
+                    if (url.length <= MAX_IMAGE_DATA_URL && /^data:image\/(png|jpe?g|webp|gif|heic|heif);base64,/i.test(url)) {
+                        parts.push({ type: 'image_url', image_url: { url: url } });
+                    }
+                } else if (p.type === 'file') {
+                    const url = p.file && p.file.file_data ? String(p.file.file_data) : '';
+                    if (url.length <= MAX_IMAGE_DATA_URL && /^data:application\/pdf;base64,/i.test(url)) {
+                        parts.push({ type: 'file', file: { filename: String((p.file && p.file.filename) || 'file.pdf').slice(0, 200), file_data: url } });
+                    }
                 }
             });
             return parts.length ? parts : '';
         }
         return '';
+    }
+
+    function hasAttachments(list) {
+        function isBinary(p) {
+            if (!p) return false;
+            if (p.type === 'image_url') return !!(p.image_url && p.image_url.url);
+            if (p.type === 'file') return !!(p.file && p.file.file_data);
+            return false;
+        }
+        return list.some(function (m) {
+            return Array.isArray(m.content) && m.content.some(isBinary);
+        });
     }
 
     const cleaned = messages
@@ -326,7 +380,12 @@ exports.handler = async function (event) {
     let lastError = null;
 
     if (GEMINI_API_KEY) {
-        const chain = [GEMINI_MODEL].concat(GEMINI_FALLBACKS.filter(function (m) { return m !== GEMINI_MODEL; }));
+        const withVision = hasAttachments(cleaned);
+        const chain = (withVision
+            ? [GEMINI_VISION_MODEL, GEMINI_MODEL].concat(GEMINI_FALLBACKS, GEMINI_VISION_FALLBACKS)
+            : [GEMINI_MODEL].concat(GEMINI_FALLBACKS)
+        ).filter(function (m, i, arr) { return m && arr.indexOf(m) === i; });
+
         for (let i = 0; i < chain.length; i++) {
             try {
                 const text = await callGemini(chain[i], cleaned, Math.min(maxTokens, GEMINI_MAX_TOKENS));
@@ -335,6 +394,8 @@ exports.handler = async function (event) {
                 lastError = e;
                 // Модель не найдена (404) — пробуем следующую в цепочке
                 if (e && e.status === 404) continue;
+                // Для фото модель может не поддерживать картинки (400) — пробуем следующую
+                if (withVision && e && e.status === 400) continue;
                 if (!e || !e.retryable) break;   // остальные ошибки не временные — перебор не поможет
             }
         }
