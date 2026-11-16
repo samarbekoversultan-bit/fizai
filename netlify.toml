@@ -11,6 +11,10 @@
 # Node 20 нужен для потоковых ответов Netlify Functions v2.
 [build.environment]
   NODE_VERSION = "20"
+  # Firebase web apiKey — публичный идентификатор проекта, а не секрет.
+  # Netlify's secret scanning ложно принимает его за утёкший ключ,
+  # поэтому исключаем только это значение (сканирование остаётся включённым).
+  SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIzaSyBrJcXHz5iWv6UR3KGJg9xkWFkzpjuRc2c"
 
 [functions]
   directory = "netlify/functions"
