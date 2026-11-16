@@ -1989,7 +1989,8 @@ Interface language: Kazakh. The whole app is now in Kazakh, so always answer the
             heartbeat();
             setInterval(heartbeat, 30000);
 
-            // При закрытии вкладки удаляем запись
+            // При закрытии вкладки/обрыве связи удаляем запись (onDisconnect срабатывает на сервере)
+            onlineRef.onDisconnect().remove();
             window.addEventListener('beforeunload', function () { onlineRef.remove(); });
 
             // Слушаем общий счётчик
