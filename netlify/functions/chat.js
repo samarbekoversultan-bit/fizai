@@ -5,7 +5,7 @@
 //  Настройка: Site configuration → Environment variables →
 //      GEMINI_API_KEY = ключ из https://aistudio.google.com/apikey
 //      GEMINI_MODEL   = gemini-3.8-flash   (необязательно)
-//      GEMINI_VISION_MODEL = gemini-flash-latest (необязательно, для фото и PDF)
+//      GEMINI_VISION_MODEL = gemini-flash-lite-latest (необязательно, для фото и PDF)
 //  Если GEMINI_API_KEY не задан, но задан GROQ_API_KEY — работает Groq.
 //
 //  Браузер обращается к /.netlify/functions/chat, ключ посетителям не виден.
@@ -23,10 +23,10 @@ const GROQ_API_KEY = String(process.env.GROQ_API_KEY || '').trim();
 const GEMINI_MODEL = String(process.env.GEMINI_MODEL || 'gemini-flash-lite-latest').trim();
 const GEMINI_FALLBACKS = ['gemini-flash-latest', 'gemini-2.0-flash-lite', 'gemini-2.0-flash'];
 
-// Для фото нужна модель со зрением (vision). Lite-модели тоже умеют,
-// но на всякий случай ставим полноценную flash-модель первой в цепочке.
-const GEMINI_VISION_MODEL = String(process.env.GEMINI_VISION_MODEL || 'gemini-flash-latest').trim();
-const GEMINI_VISION_FALLBACKS = ['gemini-2.0-flash', 'gemini-flash-lite-latest', 'gemini-2.0-flash-lite'];
+// Для фото нужна модель со зрением (vision). Lite-модель уже проверена на фото,
+// поэтому она идёт первой; остальные — запасные варианты.
+const GEMINI_VISION_MODEL = String(process.env.GEMINI_VISION_MODEL || GEMINI_MODEL).trim();
+const GEMINI_VISION_FALLBACKS = ['gemini-flash-latest', 'gemini-2.0-flash', 'gemini-flash-lite-latest', 'gemini-2.0-flash-lite'];
 const MAX_IMAGE_DATA_URL = 5 * 1024 * 1024; // ~3,7 МБ самого файла — с запасом под лимит Netlify
 
 // «Размышления» Gemini — главная причина долгого ожидания.
