@@ -1029,8 +1029,12 @@
                 if (typeof window.openAuthModal === 'function') window.openAuthModal('login');
                 return;
             }
+            var prevTab = currentTab;
             currentTab = tabId;
-            if (tabId === 'ai') warmUpAI();
+            if (tabId === 'ai') {
+                warmUpAI();
+                if (prevTab !== 'ai' && typeof window.resetChatSession === 'function') window.resetChatSession();
+            }
             if (typeof toggleSidebar === 'function') toggleSidebar(false); // на телефоне закрываем меню
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById(`view-${tabId}`).classList.remove('hidden');
@@ -3062,10 +3066,6 @@ Interface language: English. The whole app is now in English, so always answer t
                     chats.sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
                     chatIndexLoaded = true;
                     renderChatsList();
-                    if (!autoOpenedChat && chats.length) {
-                        autoOpenedChat = true;
-                        if (!activeChatId) openChat(chats[0].id, { auto: true });
-                    }
                 }, function (err) {
                     if (gen !== chatsGeneration) return;
                     console.warn('Не удалось загрузить список чатов:', err);
@@ -3252,11 +3252,7 @@ Interface language: English. The whole app is now in English, so always answer t
                     chats = loadGuestStore();
                     chatIndexLoaded = true;
                     renderChatsList();
-                    if (chats.length && !activeChatId) {
-                        openChat(chats[0].id, { auto: true });
-                    } else {
-                        resetChatSession();
-                    }
+                    resetChatSession();
                 }
             }
 
@@ -3290,7 +3286,8 @@ Interface language: English. The whole app is now in English, so always answer t
             window.startNewChat = startNewChat;
             window.openChat = openChat;
             window.deleteChat = deleteChat;
-
+            window.resetChatSession = resetChatSession;
+ 
             window.fizaiChat = {
                 onUserMessage: onUserMessage,
                 onAssistantMessage: onAssistantMessage,
@@ -3328,6 +3325,8 @@ Interface language: English. The whole app is now in English, so always answer t
                 if (nameEl) nameEl.value = currentUser.displayName || '';
                 if (emailEl) emailEl.value = currentUser.email || '';
                 if (passEl) passEl.value = '';
+                const curPassEl = $('settings-current-password');
+                if (curPassEl) curPassEl.value = '';
                 if (msg) { msg.classList.add('hidden'); msg.textContent = ''; }
                 const modal = $('settings-modal');
                 if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
@@ -3339,9 +3338,11 @@ Interface language: English. The whole app is now in English, so always answer t
             async function saveProfileSettings() {
                 if (!currentUser) return;
                 const nameEl = $('settings-name');
+                const currentPassEl = $('settings-current-password');
                 const passEl = $('settings-password');
                 const msg = $('settings-msg');
                 const name = nameEl ? nameEl.value.trim() : '';
+                const currentPassword = currentPassEl ? currentPassEl.value : '';
                 const newPassword = passEl ? passEl.value : '';
                 try {
                     if (name && name !== (currentUser.displayName || '')) {
@@ -3349,6 +3350,12 @@ Interface language: English. The whole app is now in English, so always answer t
                     }
                     if (newPassword) {
                         if (newPassword.length < 6) throw new Error('Пароль должен быть не короче 6 символов.');
+                        if (currentUser.email && currentPassword) {
+                            const cred = firebase.auth.EmailAuthProvider.credential(currentUser.email, currentPassword);
+                            await currentUser.reauthenticateWithCredential(cred);
+                        } else if (currentUser.email && !currentPassword) {
+                            throw new Error('Введите текущий пароль, чтобы сменить пароль.');
+                        }
                         await currentUser.updatePassword(newPassword);
                     }
                     if (typeof saveUserProfile === 'function') saveUserProfile(currentUser);
@@ -3358,6 +3365,7 @@ Interface language: English. The whole app is now in English, so always answer t
                         msg.classList.remove('hidden');
                     }
                     if (passEl) passEl.value = '';
+                    if (currentPassEl) currentPassEl.value = '';
                     updateUserUI(currentUser);
                 } catch (err) {
                     if (msg) {
@@ -3398,6 +3406,10 @@ Interface language: English. The whole app is now in English, so always answer t
                     <div>
                         <label class="block text-xs text-gray-400 mb-1.5">Email</label>
                         <input id="settings-email" type="email" class="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-primary" disabled>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1.5">Текущий пароль (нужен для смены пароля)</label>
+                        <input id="settings-current-password" type="password" class="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-primary" placeholder="Ваш текущий пароль">
                     </div>
                     <div>
                         <label class="block text-xs text-gray-400 mb-1.5">Новый пароль (оставьте пустым, чтобы не менять)</label>
