@@ -968,7 +968,7 @@
                 <div class="flex items-start space-x-3">
                     <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs shrink-0"><i class="fa-solid fa-robot"></i></div>
                     <div class="chat-bubble-ai p-4 rounded-2xl text-sm text-gray-200 max-w-xl shadow-md">
-                        <p class="font-semibold text-primary-light mb-1">${pick('Привет! Я — FizAI, твой репетитор по физике.', 'Hi! I\'m FizAI, your physics tutor.', 'Сәлем! Мен FizAI — физика бойынша репетиторыңмын.')}</p>
+                        <p class="font-semibold text-primary-light mb-1">${(function(){var n=(typeof window!=='undefined'&&window.fizaiUserName)?window.fizaiUserName:'';return n?pick('Добрый день, '+n+'!','Good day, '+n+'!','Қайырлы күн, '+n+'!'):pick('Привет! Я — FizAI, твой репетитор по физике.','Hi! I\'m FizAI, your physics tutor.','Сәлем! Мен FizAI — физика бойынша репетиторыңмын.');})()}</p>
                         <p>${pick('Помогу только с физикой: объясню тему или покажу, как подступиться к задаче. Готовое решение и ответ не даю — учимся решать вместе. Спроси тему или пришли задачу, фото либо файл.', 'I help with physics only: I will explain a topic or show you how to approach a problem. I will not give you a ready-made solution or the final answer — we will learn to solve it together. Ask a topic or send a problem, photo or file.', 'Тек физикаға көмектесемін: тақырыпты түсіндіремін немесе есепті қалай шешуге болатынын көрсетемін. Дайын шешім мен жауапты бермеймін — бірге үйренеміз. Тақырып сұра немесе есеп, фото не файл жібер.')}</p>
                     </div>
                 </div>`;
@@ -3237,6 +3237,7 @@ Interface language: English. The whole app is now in English, so always answer t
             function handleAuthState(user) {
                 const previousUid = currentUser ? currentUser.uid : null;
                 currentUser = user || null;
+                window.fizaiUserName = (user && (user.displayName || user.email)) ? (user.displayName || user.email) : '';
                 updateUserUI(currentUser);
                 updateAIView();
 
