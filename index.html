@@ -901,7 +901,7 @@
             if (typeof filterCalculators === 'function') filterCalculators();
             if (typeof renderQuiz === 'function') renderQuiz();
             const chat = document.getElementById('chat-container');
-            if (chat && chat.dataset.greeting === '1') chat.innerHTML = greetingHTML();
+            if (chat && chat.dataset.greeting === '1') chat.innerHTML = typeof welcomeHTML === 'function' ? welcomeHTML() : greetingHTML();
             if (chat && chat.dataset.greeting === 'cleared') chat.innerHTML = clearedHTML();
             syncLangButton();
         }
@@ -974,6 +974,29 @@
                 </div>`;
         }
 
+        // Полноэкранный экран приветствия для нового чата
+        function welcomeHTML() {
+            var name = (typeof window !== 'undefined' && window.fizaiUserName) ? window.fizaiUserName : '';
+            var title = name
+                ? pick('Добро пожаловать, ' + name + '!', 'Welcome, ' + name + '!', 'Қош келдіңіз, ' + name + '!')
+                : pick('Добро пожаловать!', 'Welcome!', 'Қош келдіңіз!');
+            return `
+                <div class="h-full min-h-[60vh] flex flex-col items-center justify-center text-center px-6 py-10">
+                    <div class="w-20 h-20 rounded-3xl bg-gradient-to-tr from-primary to-accent flex items-center justify-center text-white text-3xl mb-6 glow-effect">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-extrabold text-white mb-3">${title}</h2>
+                    <p class="text-gray-400 text-sm md:text-base max-w-md leading-relaxed">
+                        ${pick('Я — FizAI, твой репетитор по физике. Задай вопрос или выбери тему ниже — помогу разобраться.', 'I\\'m FizAI, your physics tutor. Ask a question or pick a topic below — I\\'ll help you figure it out.', 'Мен FizAI — физика бойынша репетиторың. Сұрақ қой немесе төменнен тақырып таңда — бірге түсінеміз.')}
+                    </p>
+                    <div class="mt-6 flex flex-wrap gap-2 justify-center">
+                        <button onclick="sendPresetPrompt(pick('Объясни тему: второй закон Ньютона', 'Explain the topic: Newton’s second law'))" class="bg-dark-700 hover:bg-dark-600 px-4 py-2 rounded-xl text-gray-200 text-sm border border-dark-600 transition-all">🚗 ${pick('Второй закон Ньютона', 'Newton’s second law')}</button>
+                        <button onclick="sendPresetPrompt(pick('Объясни тему: закон Кулона и напряжённость поля', 'Explain the topic: Coulomb’s law and electric field strength'))" class="bg-dark-700 hover:bg-dark-600 px-4 py-2 rounded-xl text-gray-200 text-sm border border-dark-600 transition-all">⚡ ${pick('Закон Кулона', 'Coulomb’s law')}</button>
+                        <button onclick="sendPresetPrompt(pick('Объясни тему: идеальный газ и уравнение Менделеева — Клапейрона', 'Explain the topic: ideal gas and the Mendeleev–Clapeyron equation'))" class="bg-dark-700 hover:bg-dark-600 px-4 py-2 rounded-xl text-gray-200 text-sm border border-dark-600 transition-all">🌡️ ${pick('МКТ и Клапейрон', 'Ideal gas')}</button>
+                    </div>
+                </div>`;
+        }
+
         // «Чат очищен» (тоже перестраивается при смене языка)
         function clearedHTML() {
             return `
@@ -989,7 +1012,7 @@
         function initGreeting() {
             const chat = document.getElementById('chat-container');
             if (chat && !chat.children.length) {
-                chat.innerHTML = greetingHTML();
+                chat.innerHTML = typeof welcomeHTML === 'function' ? welcomeHTML() : greetingHTML();
                 chat.dataset.greeting = '1';
             }
         }
@@ -1024,6 +1047,7 @@
         });
 
         window.switchTab = function(tabId) {
+            // Закрытые разделы доступны только после входа в аккаунт
             var PROTECTED_TABS = ['ai', 'quizzes', 'calculators', 'formulas'];
             if (PROTECTED_TABS.indexOf(tabId) !== -1 && !(window.fizaiAuth && window.fizaiAuth.isSignedIn())) {
                 if (typeof window.openAuthModal === 'function') window.openAuthModal('login');
@@ -1513,7 +1537,22 @@
             { grade: 11, q: "Какая частица возникает при бета-распаде?", options: ["электрон", "протон", "альфа-частица", "фотон"], correct: 0 },
             { grade: 11, q: "Как звучит квантовое условие Бора?", options: ["m · v · r = n · (h / 2π)", "E = h · ν", "F = m · a", "p = m · v"], correct: 0 },
             { grade: 11, q: "Какая частица переносит электромагнитное взаимодействие?", options: ["фотон", "нейтрино", "глюон", "мезон"], correct: 0 },
-            { grade: 11, q: "Что такое сверхпроводимость?", options: ["нулевое сопротивление ниже критической температуры", "сверхбыстрый нагрев проводника", "ток без напряжения", "проводимость изолятора"], correct: 0 }
+            { grade: 11, q: "Что такое сверхпроводимость?", options: ["нулевое сопротивление ниже критической температуры", "сверхбыстрый нагрев проводника", "ток без напряжения", "проводимость изолятора"], correct: 0 },
+            { grade: 7, q: "Как записывается скорость при равномерном движении?", options: ["v = S / t", "v = S · t", "v = t / S", "v = S + t"], correct: 0 },
+            { grade: 7, q: "В каких единицах измеряется масса?", options: ["килограмм", "метр", "секунда", "ньютон"], correct: 0 },
+            { grade: 7, q: "Что показывает спидометр автомобиля?", options: ["мгновенную скорость", "пройденный путь", "ускорение", "время в пути"], correct: 0 },
+            { grade: 8, q: "В каких единицах измеряется электрическое сопротивление?", options: ["Ом", "Вольт", "Ампер", "Ватт"], correct: 0 },
+            { grade: 8, q: "Какой прибор измеряет силу тока?", options: ["амперметр", "вольтметр", "омметр", "ваттметр"], correct: 0 },
+            { grade: 8, q: "Что такое электрическое напряжение?", options: ["работа по перемещению единичного заряда", "сила тока", "сопротивление", "мощность"], correct: 0 },
+            { grade: 9, q: "Что такое амплитуда колебаний?", options: ["максимальное отклонение от положения равновесия", "время одного колебания", "число колебаний в секунду", "длина волны"], correct: 0 },
+            { grade: 9, q: "В каких единицах измеряется длина волны?", options: ["метр", "герц", "секунда", "радиан"], correct: 0 },
+            { grade: 9, q: "Что такое преломление света?", options: ["изменение направления луча на границе сред", "отражение луча от зеркала", "поглощение света", "рассеяние света"], correct: 0 },
+            { grade: 10, q: "Что такое ускорение?", options: ["изменение скорости за единицу времени", "пройденный путь", "скорость движения", "сила, действующая на тело"], correct: 0 },
+            { grade: 10, q: "В каких единицах измеряется энергия?", options: ["Джоуль", "Ньютон", "Ватт", "Паскаль"], correct: 0 },
+            { grade: 10, q: "Что такое работа силы?", options: ["произведение силы на перемещение вдоль неё", "сила, делённая на время", "масса, умноженная на скорость", "энергия, делённая на время"], correct: 0 },
+            { grade: 11, q: "Что такое фотон?", options: ["квант электромагнитного излучения", "частица вещества", "атом водорода", "электрон"], correct: 0 },
+            { grade: 11, q: "Какое излучение обладает наибольшей проникающей способностью?", options: ["гамма-излучение", "альфа-излучение", "бета-излучение", "ультрафиолетовое"], correct: 0 },
+            { grade: 11, q: "Что такое ядерная реакция?", options: ["превращение атомных ядер", "химическая реакция", "нагревание вещества", "плавление металла"], correct: 0 }
         ];
 
         // Классы, доступные для выбора, и описание программы каждого из них
@@ -1534,6 +1573,7 @@
         let quizCurrent = null;   // { text, opts: [{text, ok}] } — варианты уже перемешаны
         let quizAnswered = -1;    // -1 = ещё не ответили
         let quizFinished = false;
+        let quizWrong = [];   // вопросы, на которые ответили неверно: { text, correct, chosen }
 
         function quizPool() {
             return quizDB.filter(q => q.grade === quizGrade);
@@ -1564,6 +1604,7 @@
                 quizCurrent = null;
                 quizDeck = [];
                 quizFinished = false;
+                quizWrong = [];
                 renderQuiz();
                 return;
             }
@@ -1577,6 +1618,7 @@
             quizPos = 0;
             quizScore = 0;
             quizFinished = false;
+            quizWrong = [];
             dealQuiz();
             renderQuiz();
         }
@@ -1666,6 +1708,7 @@
                         <div class="flex flex-wrap items-center justify-center gap-3">
                             <button onclick="restartQuiz()" class="px-6 py-3 bg-primary hover:bg-primary-hover text-white font-medium rounded-xl transition-all">${pick('Играть снова', 'Play again')}</button>
                             <button onclick="changeQuizGrade()" class="px-6 py-3 bg-dark-700 hover:bg-dark-600 text-gray-200 font-medium rounded-xl border border-dark-600 transition-all">${pick('Сменить класс', 'Change grade')}</button>
+                            ${quizWrong.length ? `<button onclick="askTutorAboutQuiz()" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition-all flex items-center gap-2"><i class="fa-solid fa-robot"></i><span>${pick('Спросить у репетитора', 'Ask the tutor')}</span></button>` : ''}
                         </div>
                     </div>`;
                 return;
@@ -1726,6 +1769,15 @@
             if (quizAnswered >= 0 || !quizCurrent || quizFinished) return;
             quizAnswered = i;
             if (quizCurrent.opts[i].ok) quizScore++;
+            else {
+                try {
+                    quizWrong.push({
+                        text: quizCurrent.text,
+                        correct: (quizCurrent.opts.find(function (o) { return o.ok; }) || {}).text || '',
+                        chosen: quizCurrent.opts[i].text
+                    });
+                } catch (e) {}
+            }
             renderQuiz();
         };
 
@@ -1741,6 +1793,30 @@
         };
 
         window.restartQuiz = function() { startQuiz(); };
+
+        window.askTutorAboutQuiz = function() {
+            if (!quizWrong.length) return;
+            // Готовим текст с вопросами, на которые ответили неверно
+            const lines = quizWrong.map(function (w, idx) {
+                return (idx + 1) + ') ' + w.text + '\\n' +
+                    '   ' + pick('Ваш ответ:', 'Your answer:') + ' ' + w.chosen + '\\n' +
+                    '   ' + pick('Правильный ответ:', 'Correct answer:') + ' ' + w.correct;
+            }).join('\\n\\n');
+            const msg = pick(
+                'Я прошёл квиз по физике (' + quizGrade + ' класс) и ошибся в некоторых вопросах. Помоги разобраться, объясни, почему правильный ответ именно такой:\\n\\n' + lines,
+                'I took a physics quiz (grade ' + quizGrade + ') and got some questions wrong. Help me understand why the correct answer is what it is:\\n\\n' + lines
+            );
+            // Переключаемся в ИИ (новый чат) и отправляем сообщение
+            switchTab('ai');
+            // ждём, пока чат инициализируется
+            setTimeout(function () {
+                const input = document.getElementById('user-input');
+                if (input) {
+                    input.value = msg;
+                    if (typeof handleChatSubmit === 'function') handleChatSubmit({ preventDefault: function () {}, target: document.getElementById('chat-form') });
+                }
+            }, 300);
+        };
 
         function systemPrompt() {
             const ru = `Ты — FizAI, ИИ-репетитор ТОЛЬКО по физике для школьников и студентов. Твоя цель — чтобы ученик понял физику и научился решать задачи сам. Отвечай на языке вопроса, дружелюбно и просто.
@@ -2967,7 +3043,7 @@ Interface language: English. The whole app is now in English, so always answer t
                 if (typeof chatHistory !== 'undefined') chatHistory.splice(1);
                 const chat = $('chat-container');
                 if (chat) {
-                    chat.innerHTML = typeof greetingHTML === 'function' ? greetingHTML() : '';
+                    chat.innerHTML = typeof welcomeHTML === 'function' ? welcomeHTML() : (typeof greetingHTML === 'function' ? greetingHTML() : '');
                     chat.dataset.greeting = '1';
                     chat.scrollTop = 0;
                 }
@@ -3316,6 +3392,7 @@ Interface language: English. The whole app is now in English, so always answer t
                 if (window.innerWidth >= 1024) closeChatsDrawer();
             });
 
+            // ===== Настройки профиля =====
             function openSettingsModal() {
                 if (!currentUser) { openAuthModal('login'); return; }
                 const nameEl = $('settings-name');
@@ -3350,6 +3427,7 @@ Interface language: English. The whole app is now in English, so always answer t
                     }
                     if (newPassword) {
                         if (newPassword.length < 6) throw new Error('Пароль должен быть не короче 6 символов.');
+                        // Re-authenticate before changing password (Firebase requirement)
                         if (currentUser.email && currentPassword) {
                             const cred = firebase.auth.EmailAuthProvider.credential(currentUser.email, currentPassword);
                             await currentUser.reauthenticateWithCredential(cred);
@@ -3378,12 +3456,10 @@ Interface language: English. The whole app is now in English, so always answer t
             window.openSettingsModal = openSettingsModal;
             window.closeSettingsModal = closeSettingsModal;
             window.saveProfileSettings = saveProfileSettings;
-
-            // Escape key: close settings modal too
-            // (patched below in keydown handler)
         })();
     </script>
 
+    <!-- Модальное окно настроек профиля -->
     <div id="settings-modal" class="fixed inset-0 z-[100] items-center justify-center p-4 bg-black/70 backdrop-blur-sm" style="display:none" onclick="if (event.target === this) closeSettingsModal();">
         <div class="relative w-full max-w-md bg-dark-800 border border-dark-600 rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto">
             <button onclick="closeSettingsModal()" title="Закрыть" aria-label="Закрыть"
