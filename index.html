@@ -146,16 +146,13 @@
                     </button>
                 </div>
                 <div id="sidebar-auth-logged-in" class="hidden">
-                    <div class="flex items-center gap-3 p-3 rounded-xl bg-dark-900/60 border border-dark-600">
+                    <div class="flex items-center gap-3 p-3 rounded-xl bg-dark-900/60 border border-dark-600 cursor-pointer" onclick="openProfileModal()">
                         <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-xs font-bold shrink-0">F</div>
                         <div class="min-w-0 flex-1">
                             <p id="sidebar-name" class="text-sm font-semibold text-gray-100 truncate"></p>
                             <p id="sidebar-email" class="text-[11px] text-gray-500 truncate"></p>
                         </div>
-                        <button onclick="openChatsPanel()" title="Мои чаты" class="w-8 h-8 rounded-lg bg-dark-700 hover:bg-dark-600 text-accent flex items-center justify-center transition-all shrink-0">
-                            <i class="fa-solid fa-comments text-xs"></i>
-                        </button>
-                        <button onclick="openSettingsModal()" title="Настройки профиля" class="w-8 h-8 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-light flex items-center justify-center transition-all shrink-0">
+                        <button onclick="event.stopPropagation(); openSettingsModal();" title="Настройки профиля" class="w-8 h-8 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-light flex items-center justify-center transition-all shrink-0">
                             <i class="fa-solid fa-gear text-xs"></i>
                         </button>
                     </div>
@@ -248,8 +245,8 @@
                             <p id="account-menu-email" class="text-xs text-gray-400 truncate"></p>
                         </div>
                         <div class="p-2">
-                            <button onclick="openChatsPanel(); closeAccountMenu();" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-200 hover:bg-dark-700 transition-all">
-                                <i class="fa-solid fa-comments text-accent w-4"></i><span>Мои чаты</span>
+                            <button onclick="openProfileModal(); closeAccountMenu();" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-200 hover:bg-dark-700 transition-all">
+                                <i class="fa-solid fa-user text-accent w-4"></i><span>Мой профиль</span>
                             </button>
                             <button onclick="openSettingsModal(); closeAccountMenu();" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-200 hover:bg-dark-700 transition-all">
                                 <i class="fa-solid fa-gear text-primary-light w-4"></i><span>Настройки профиля</span>
@@ -1785,6 +1782,7 @@
             if (quizAnswered < 0) return;
             if (quizPos + 1 >= quizDeck.length) {
                 quizFinished = true;
+                saveQuizProgress();
             } else {
                 quizPos++;
                 dealQuiz();
@@ -1793,6 +1791,39 @@
         };
 
         window.restartQuiz = function() { startQuiz(); };
+
+        // ===== Прогресс квизов =====
+        const QUIZ_PROGRESS_KEY = 'fizai_quiz_progress_v1';
+        function loadQuizProgress() {
+            try {
+                const raw = localStorage.getItem(QUIZ_PROGRESS_KEY);
+                const arr = raw ? JSON.parse(raw) : [];
+                return Array.isArray(arr) ? arr : [];
+            } catch (e) { return []; }
+        }
+        function saveQuizProgress() {
+            try {
+                const arr = loadQuizProgress();
+                arr.push({
+                    grade: quizGrade,
+                    score: quizScore,
+                    total: quizDeck.length,
+                    wrong: quizWrong.length,
+                    date: Date.now()
+                });
+                // хранить не более 200 записей
+                while (arr.length > 200) arr.shift();
+                localStorage.setItem(QUIZ_PROGRESS_KEY, JSON.stringify(arr));
+            } catch (e) {}
+            // если вошли — также сохранить в Firebase
+            try {
+                if (window.fizaiAuth && window.fizaiAuth.isSignedIn() && typeof firebase !== 'undefined' && firebase.database) {
+                    // currentUser доступен в firebase IIFE; здесь мы в первом скрипте, поэтому используем глобаль
+                }
+            } catch (e) {}
+        }
+        window.loadQuizProgress = loadQuizProgress;
+        window.saveQuizProgress = saveQuizProgress;
 
         window.askTutorAboutQuiz = function() {
             if (!quizWrong.length) return;
@@ -3386,6 +3417,8 @@ Interface language: English. The whole app is now in English, so always answer t
                 if (authModal && authModal.style.display === 'flex') closeAuthModal();
                 const settingsModal = $('settings-modal');
                 if (settingsModal && settingsModal.style.display === 'flex') closeSettingsModal();
+                const profileModal = $('profile-modal');
+                if (profileModal && profileModal.style.display === 'flex') closeProfileModal();
             });
 
             window.addEventListener('resize', function () {
@@ -3453,6 +3486,72 @@ Interface language: English. The whole app is now in English, so always answer t
                     }
                 }
             }
+            // ===== Профиль и прогресс =====
+            function openProfileModal() {
+                if (!currentUser) { openAuthModal('login'); return; }
+                const avatar = $('profile-avatar');
+                const nameEl = $('profile-name');
+                const emailEl = $('profile-email');
+                const name = currentUser.displayName || currentUser.email || 'Пользователь';
+                if (avatar) avatar.textContent = (name.trim()[0] || 'F').toUpperCase();
+                if (nameEl) nameEl.textContent = name;
+                if (emailEl) emailEl.textContent = currentUser.email || '';
+                // статистика
+                const progress = (typeof loadQuizProgress === 'function') ? loadQuizProgress() : [];
+                const total = progress.length;
+                const avg = total ? Math.round(progress.reduce(function (s, p) { return s + (p.score / (p.total || 1)) * 100; }, 0) / total) : 0;
+                const best = total ? Math.round(Math.max.apply(null, progress.map(function (p) { return (p.score / (p.total || 1)) * 100; }))) : 0;
+                const totalEl = $('profile-total'); if (totalEl) totalEl.textContent = total;
+                const avgEl = $('profile-avg'); if (avgEl) avgEl.textContent = avg + '%';
+                const bestEl = $('profile-best'); if (bestEl) bestEl.textContent = best + '%';
+                // по классам
+                const byGradeEl = $('profile-by-grade');
+                if (byGradeEl) {
+                    const byGrade = {};
+                    progress.forEach(function (p) {
+                        if (!byGrade[p.grade]) byGrade[p.grade] = { score: 0, total: 0, n: 0 };
+                        byGrade[p.grade].score += p.score;
+                        byGrade[p.grade].total += (p.total || 0);
+                        byGrade[p.grade].n++;
+                    });
+                    const grades = Object.keys(byGrade).sort();
+                    byGradeEl.innerHTML = grades.length
+                        ? grades.map(function (g) {
+                            const d = byGrade[g];
+                            const pct = d.total ? Math.round((d.score / d.total) * 100) : 0;
+                            return `<div class="flex items-center justify-between bg-dark-900/60 border border-dark-600 rounded-lg px-3 py-2">
+                                <span class="text-gray-200">${g} класс</span>
+                                <span class="text-gray-400">${d.n} ${pick('попыток', 'attempts')} · ${pct}%</span>
+                            </div>`;
+                        }).join('')
+                        : `<p class="text-gray-500">${pick('Пока нет результатов квизов.', 'No quiz results yet.')}</p>`;
+                }
+                // последние попытки
+                const recentEl = $('profile-recent');
+                if (recentEl) {
+                    const recent = progress.slice().reverse().slice(0, 8);
+                    recentEl.innerHTML = recent.length
+                        ? recent.map(function (p) {
+                            const d = new Date(p.date);
+                            const dateStr = d.toLocaleDateString();
+                            const pct = p.total ? Math.round((p.score / p.total) * 100) : 0;
+                            return `<div class="flex items-center justify-between py-1 border-b border-dark-700/50">
+                                <span>${p.grade} класс · ${p.score}/${p.total}</span>
+                                <span class="text-gray-500">${dateStr} · ${pct}%</span>
+                            </div>`;
+                        }).join('')
+                        : `<p class="text-gray-500">${pick('Пока нет результатов.', 'No results yet.')}</p>`;
+                }
+                const modal = $('profile-modal');
+                if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+            }
+            function closeProfileModal() {
+                const modal = $('profile-modal');
+                if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+            }
+            window.openProfileModal = openProfileModal;
+            window.closeProfileModal = closeProfileModal;
+
             window.openSettingsModal = openSettingsModal;
             window.closeSettingsModal = closeSettingsModal;
             window.saveProfileSettings = saveProfileSettings;
@@ -3497,6 +3596,53 @@ Interface language: English. The whole app is now in English, so always answer t
                     </button>
                     <button onclick="signOutUser()" class="w-full px-4 py-3 rounded-xl bg-dark-700 hover:bg-dark-600 text-red-300 font-medium border border-dark-600 transition-all">
                         Выйти из аккаунта
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно профиля и прогресса -->
+    <div id="profile-modal" class="fixed inset-0 z-[100] items-center justify-center p-4 bg-black/70 backdrop-blur-sm" style="display:none" onclick="if (event.target === this) closeProfileModal();">
+        <div class="relative w-full max-w-lg bg-dark-800 border border-dark-600 rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto">
+            <button onclick="closeProfileModal()" title="Закрыть" aria-label="Закрыть"
+                    class="absolute top-3 right-3 w-8 h-8 rounded-lg bg-dark-700 hover:bg-dark-600 text-gray-400 hover:text-white flex items-center justify-center transition-all z-10">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="p-6 md:p-7">
+                <div class="text-center mb-5">
+                    <div id="profile-avatar" class="w-16 h-16 mx-auto rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-2xl font-bold mb-3">F</div>
+                    <h3 id="profile-name" class="text-xl font-bold text-white">Профиль</h3>
+                    <p id="profile-email" class="text-xs text-gray-400 mt-1"></p>
+                </div>
+                <div class="grid grid-cols-3 gap-3 mb-5">
+                    <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3 text-center">
+                        <p id="profile-total" class="text-2xl font-extrabold text-primary-light">0</p>
+                        <p class="text-[10px] text-gray-500 uppercase tracking-wider">Квизов</p>
+                    </div>
+                    <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3 text-center">
+                        <p id="profile-avg" class="text-2xl font-extrabold text-accent">0%</p>
+                        <p class="text-[10px] text-gray-500 uppercase tracking-wider">Средний</p>
+                    </div>
+                    <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3 text-center">
+                        <p id="profile-best" class="text-2xl font-extrabold text-emerald-400">0%</p>
+                        <p class="text-[10px] text-gray-500 uppercase tracking-wider">Лучший</p>
+                    </div>
+                </div>
+                <div class="mb-5">
+                    <h4 class="text-sm font-semibold text-gray-200 mb-2">По классам</h4>
+                    <div id="profile-by-grade" class="space-y-2 text-sm"></div>
+                </div>
+                <div class="mb-5">
+                    <h4 class="text-sm font-semibold text-gray-200 mb-2">Последние попытки</h4>
+                    <div id="profile-recent" class="space-y-1.5 text-xs text-gray-400 max-h-40 overflow-y-auto"></div>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="openSettingsModal(); closeProfileModal();" class="flex-1 px-4 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-medium transition-all">
+                        Настройки профиля
+                    </button>
+                    <button onclick="signOutUser()" class="flex-1 px-4 py-3 rounded-xl bg-dark-700 hover:bg-dark-600 text-red-300 font-medium border border-dark-600 transition-all">
+                        Выйти
                     </button>
                 </div>
             </div>
