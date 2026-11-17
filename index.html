@@ -147,14 +147,28 @@
             </div>
         </div>
 
-        <div class="p-4 border-t border-dark-700 m-4 rounded-xl bg-dark-900/50">
+        <div class="p-4 border-t border-dark-700 m-4 rounded-xl bg-dark-900/50 space-y-3">
+            <!-- Войти в аккаунт -->
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-full bg-primary/20 text-primary-light flex items-center justify-center font-bold text-xs">
+                    <i class="fa-solid fa-right-to-bracket"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold text-gray-200">Войти в аккаунт</p>
+                    <p class="text-[10px] text-gray-500">Сохраняйте чаты и прогресс</p>
+                </div>
+                <button onclick="openAuthModal('login')" class="w-9 h-9 rounded-full bg-primary/15 text-primary-light hover:bg-primary hover:text-white flex items-center justify-center transition-all text-sm shrink-0">
+                    <i class="fa-solid fa-right-to-bracket"></i>
+                </button>
+            </div>
+            <!-- Наше сообщество: Telegram -->
             <div class="flex items-center space-x-3">
                 <div class="w-8 h-8 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-xs">
                     <i class="fa-brands fa-telegram"></i>
                 </div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-xs font-semibold text-gray-200">Telegram</p>
-                    <p class="text-[10px] text-gray-500">Наш канал</p>
+                    <p class="text-xs font-semibold text-gray-200">Наше сообщество</p>
+                    <p class="text-[10px] text-gray-500">Telegram-канал</p>
                 </div>
                 <a href="https://t.me/fizai11" target="_blank" rel="noopener noreferrer" title="Наш Telegram-канал" class="w-9 h-9 rounded-full bg-sky-500/15 text-sky-400 hover:bg-sky-500 hover:text-white flex items-center justify-center transition-all text-lg shrink-0">
                     <i class="fa-brands fa-telegram"></i>
@@ -597,24 +611,7 @@
         const TELEGRAM_URL = "https://t.me/fizai11";   // например: "https://t.me/ваш_канал"
         const DISCORD_URL = "";    // например: "https://discord.gg/ваш_код"
 
-        function initSocialLinks() {
-            const links = { telegram: TELEGRAM_URL, discord: DISCORD_URL };
-            let any = false;
-            Object.keys(links).forEach(name => {
-                const url = String(links[name] || '').trim();
-                const ok = /^https:\/\/[^\s"'<>]+$/i.test(url); // принимаем только обычные https-ссылки
-                document.querySelectorAll('.social-' + name).forEach(a => {
-                    if (ok) { a.href = url; a.classList.remove('hidden'); a.classList.add('flex'); }
-                    else { a.classList.add('hidden'); }
-                });
-                if (ok) any = true;
-            });
-            ['social-links', 'community-banner'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.toggle('hidden', !any);
-            });
-        }
-        window.addEventListener('DOMContentLoaded', initSocialLinks);
+        // Ссылки на сообщество убраны — блоки удалены, initSocialLinks не нужен
 
         // ===== ПЕРЕВОД ИНТЕРФЕЙСА (русский + любой язык) =====
         let currentLang = 'ru';
@@ -3468,6 +3465,7 @@ Interface language: English. The whole app is now in English, so always answer t
                 window.fizaiUserName = (user && (user.displayName || user.email)) ? (user.displayName || user.email) : '';
                 updateUserUI(currentUser);
                 updateAIView();
+                if (typeof refreshAdminNav === 'function') refreshAdminNav();
 
                 if (currentUser) {
                     saveUserProfile(currentUser);
@@ -3560,8 +3558,6 @@ Interface language: English. The whole app is now in English, so always answer t
                 if (passEl) passEl.value = '';
                 const curPassEl = $('settings-current-password');
                 if (curPassEl) curPassEl.value = '';
-                const adminPassEl = $('settings-admin-password');
-                if (adminPassEl) adminPassEl.value = localStorage.getItem('fizai_admin_password') || '';
                 if (msg) { msg.classList.add('hidden'); msg.textContent = ''; }
                 const modal = $('settings-modal');
                 if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
@@ -3575,7 +3571,6 @@ Interface language: English. The whole app is now in English, so always answer t
                 const nameEl = $('settings-name');
                 const currentPassEl = $('settings-current-password');
                 const passEl = $('settings-password');
-                const adminPassEl = $('settings-admin-password');
                 const msg = $('settings-msg');
                 const name = nameEl ? nameEl.value.trim() : '';
                 const currentPassword = currentPassEl ? currentPassEl.value : '';
@@ -3595,12 +3590,7 @@ Interface language: English. The whole app is now in English, so always answer t
                         }
                         await currentUser.updatePassword(newPassword);
                     }
-                    const adminPass = adminPassEl ? adminPassEl.value.trim() : '';
-                    if (adminPassEl) {
-                        if (adminPass) localStorage.setItem('fizai_admin_password', adminPass);
-                        else localStorage.removeItem('fizai_admin_password');
-                    }
-                    if (adminPassEl) adminPassEl.value = '';
+                    // пароль админки не настраивается пользователями
                     if (typeof saveUserProfile === 'function') saveUserProfile(currentUser);
                     if (typeof refreshAdminNav === 'function') refreshAdminNav();
                     if (msg) {
@@ -3730,6 +3720,9 @@ Interface language: English. The whole app is now in English, so always answer t
                     </button>
                     <button onclick="signOutUser()" class="w-full px-4 py-3 rounded-xl bg-dark-700 hover:bg-dark-600 text-red-300 font-medium border border-dark-600 transition-all">
                         Выйти из аккаунта
+                    </button>
+                    <button onclick="closeSettingsModal(); openAdminPanel();" class="w-full px-4 py-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-medium border border-amber-500/30 transition-all">
+                        <i class="fa-solid fa-shield-halved mr-2"></i>Войти в админ-панель
                     </button>
                 </div>
             </div>
