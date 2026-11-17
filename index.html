@@ -2089,11 +2089,7 @@ Interface language: English. The whole app is now in English, so always answer t
         window.handleChatSubmit = async function(e) {
             e.preventDefault();
 
-            // ИИ доступен только после входа в аккаунт
-            if (!window.fizaiAuth || !window.fizaiAuth.isSignedIn()) {
-                if (typeof window.openAuthModal === 'function') window.openAuthModal('login');
-                return;
-            }
+            // ИИ доступен всем; чаты сохраняются локально (и в аккаунте, если вошли)
 
             const inputEl = document.getElementById('user-input');
             const prompt = inputEl.value.trim();
@@ -2522,6 +2518,14 @@ Interface language: English. The whole app is now in English, so always answer t
             let activeChatMessages = [];
             let activeChatTitle = '';
             let activeChatCreatedAt = 0;
+            const GUEST_STORAGE_KEY = 'fizai_guest_chats_v1';
+            function loadGuestStore() {
+                try {
+                    const raw = localStorage.getItem(GUEST_STORAGE_KEY);
+                    const arr = raw ? JSON.parse(raw) : [];
+                    return Array.isArray(arr) ? arr : [];
+                } catch (e) { return []; }
+            }
             let openChatToken = 0;
             let saveQueue = Promise.resolve();
 
@@ -2578,9 +2582,9 @@ Interface language: English. The whole app is now in English, so always answer t
             function updateAIView() {
                 const wall = $('ai-auth-wall');
                 const workspace = $('ai-workspace');
-                if (wall) wall.style.display = currentUser ? 'none' : 'flex';
-                if (workspace) workspace.style.display = currentUser ? 'flex' : 'none';
-                if (!currentUser) closeChatsDrawer();
+                // Чаты доступны и сохраняются для всех, в том числе без входа (локально).
+                if (wall) wall.style.display = 'none';
+                if (workspace) workspace.style.display = 'flex';
             }
 
             // ===== Модальное окно входа =====
@@ -2956,14 +2960,27 @@ Interface language: English. The whole app is now in English, so always answer t
             }
 
             function startNewChat() {
-                if (!currentUser) { openAuthModal('login'); return; }
                 resetChatSession();
                 const input = $('user-input');
                 if (input && window.innerWidth >= 1024) input.focus();
             }
 
             async function openChat(id, options) {
-                if (!currentUser) { openAuthModal('login'); return; }
+                if (!currentUser) {
+                    const chat = (chats || []).find(function (c) { return c.id === id; });
+                    if (!chat) return;
+                    const token = ++openChatToken;
+                    closeChatsDrawer();
+                    closeAccountMenu();
+                    const messages = normalizeStoredMessages(chat.messages || []);
+                    activeChatId = id;
+                    activeChatMessages = messages;
+                    activeChatCreatedAt = (chat.createdAt || chat.updatedAt) || 0;
+                    setChatTitle((chat.title) || (messages.length ? makeTitle(messages[0].text) : tr('Чат', 'Chat')));
+                    renderLoadedChat(messages);
+                    renderChatsList();
+                    return;
+                }
                 const meta = chats.find(function (c) { return c.id === id; });
                 const token = ++openChatToken;
                 closeChatsDrawer();
@@ -2986,7 +3003,15 @@ Interface language: English. The whole app is now in English, so always answer t
 
             function deleteChat(event, id) {
                 if (event) { event.preventDefault(); event.stopPropagation(); }
-                if (!currentUser) return;
+                if (!currentUser) {
+                    if (!confirm('Удалить этот чат? Это действие нельзя отменить.')) return;
+                    chats = (chats || []).filter(function (c) { return c.id !== id; });
+                    try { localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(chats)); } catch (e) {}
+                    if (activeChatId === id) resetChatSession();
+                    else renderChatsList();
+                    toast('Чат удалён.', 'success');
+                    return;
+                }
                 const meta = chats.find(function (c) { return c.id === id; });
                 const title = meta && meta.title ? meta.title : 'этот чат';
                 if (!confirm('Удалить «' + title + '»? Это действие нельзя отменить.')) return;
@@ -3051,7 +3076,44 @@ Interface language: English. The whole app is now in English, so always answer t
 
             // ===== Сохранение текущего чата =====
             function queueSaveChat() {
-                if (!currentUser || !activeChatMessages.length) return;
+                if (!activeChatMessages.length) return;
+                if (!currentUser) {
+                    const messages = activeChatMessages.map(function (m) {
+                        return {
+                            role: m.role,
+                            text: String(m.text || ''),
+                            attachments: (m.attachments || []).map(function (a) {
+                                return { name: String(a.name || 'Файл'), isImage: !!a.isImage, isPdf: !!a.isPdf };
+                            }),
+                            at: m.at || Date.now()
+                        };
+                    });
+                    if (!activeChatId) {
+                        activeChatId = 'g_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+                        activeChatCreatedAt = Date.now();
+                    }
+                    const chatId = activeChatId;
+                    const now = Date.now();
+                    if (!activeChatCreatedAt) activeChatCreatedAt = now;
+                    const title = activeChatTitle || makeTitle(messages[0] && messages[0].text);
+                    const userCount = messages.filter(function (m) { return m.role === 'user'; }).length;
+                    const chatObj = {
+                        id: chatId,
+                        title: title,
+                        createdAt: activeChatCreatedAt,
+                        updatedAt: now,
+                        count: userCount,
+                        messages: messages
+                    };
+                    if (!Array.isArray(chats)) chats = [];
+                    const idx = chats.findIndex(function (c) { return c.id === chatId; });
+                    if (idx >= 0) chats[idx] = chatObj;
+                    else chats.unshift(chatObj);
+                    chats.sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+                    try { localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(chats)); } catch (e) {}
+                    renderChatsList();
+                    return;
+                }
                 const uid = currentUser.uid;
 
                 const messages = activeChatMessages.map(function (m) {
@@ -3093,7 +3155,6 @@ Interface language: English. The whole app is now in English, so always answer t
             }
 
             function onUserMessage(text, attachments) {
-                if (!currentUser) return;
                 const att = (attachments || []).map(function (a) {
                     return { name: String(a.name || 'Файл'), isImage: !!a.isImage, isPdf: !!a.isPdf };
                 });
@@ -3108,7 +3169,6 @@ Interface language: English. The whole app is now in English, so always answer t
             }
 
             function onAssistantMessage(text) {
-                if (!currentUser) return;
                 activeChatMessages.push({
                     role: 'assistant',
                     text: String(text || ''),
@@ -3122,7 +3182,6 @@ Interface language: English. The whole app is now in English, so always answer t
             function openChatsPanel() {
                 if (typeof switchTab === 'function') switchTab('ai');
                 closeAccountMenu();
-                if (!currentUser) { openAuthModal('login'); return; }
                 updateAIView();
                 if (window.innerWidth < 1024) {
                     openChatsDrawer();
@@ -3178,8 +3237,14 @@ Interface language: English. The whole app is now in English, so always answer t
                     }
                 } else {
                     detachChats();
-                    resetChatSession();
+                    chats = loadGuestStore();
+                    chatIndexLoaded = true;
                     renderChatsList();
+                    if (chats.length && !activeChatId) {
+                        openChat(chats[0].id, { auto: true });
+                    } else {
+                        resetChatSession();
+                    }
                 }
             }
 
