@@ -155,6 +155,9 @@
                         <button onclick="openChatsPanel()" title="Мои чаты" class="w-8 h-8 rounded-lg bg-dark-700 hover:bg-dark-600 text-accent flex items-center justify-center transition-all shrink-0">
                             <i class="fa-solid fa-comments text-xs"></i>
                         </button>
+                        <button onclick="openSettingsModal()" title="Настройки профиля" class="w-8 h-8 rounded-lg bg-dark-700 hover:bg-dark-600 text-primary-light flex items-center justify-center transition-all shrink-0">
+                            <i class="fa-solid fa-gear text-xs"></i>
+                        </button>
                     </div>
                     <button onclick="signOutUser()" class="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-400 hover:text-red-300 hover:bg-red-500/10 transition-all">
                         <i class="fa-solid fa-right-from-bracket"></i><span>Выйти</span>
@@ -247,6 +250,9 @@
                         <div class="p-2">
                             <button onclick="openChatsPanel(); closeAccountMenu();" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-200 hover:bg-dark-700 transition-all">
                                 <i class="fa-solid fa-comments text-accent w-4"></i><span>Мои чаты</span>
+                            </button>
+                            <button onclick="openSettingsModal(); closeAccountMenu();" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-200 hover:bg-dark-700 transition-all">
+                                <i class="fa-solid fa-gear text-primary-light w-4"></i><span>Настройки профиля</span>
                             </button>
                             <button onclick="signOutUser()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-300 hover:bg-red-500/10 transition-all">
                                 <i class="fa-solid fa-right-from-bracket w-4"></i><span>Выйти</span>
@@ -1018,6 +1024,11 @@
         });
 
         window.switchTab = function(tabId) {
+            var PROTECTED_TABS = ['ai', 'quizzes', 'calculators', 'formulas'];
+            if (PROTECTED_TABS.indexOf(tabId) !== -1 && !(window.fizaiAuth && window.fizaiAuth.isSignedIn())) {
+                if (typeof window.openAuthModal === 'function') window.openAuthModal('login');
+                return;
+            }
             currentTab = tabId;
             if (tabId === 'ai') warmUpAI();
             if (typeof toggleSidebar === 'function') toggleSidebar(false); // на телефоне закрываем меню
@@ -2582,9 +2593,9 @@ Interface language: English. The whole app is now in English, so always answer t
             function updateAIView() {
                 const wall = $('ai-auth-wall');
                 const workspace = $('ai-workspace');
-                // Чаты доступны и сохраняются для всех, в том числе без входа (локально).
-                if (wall) wall.style.display = 'none';
-                if (workspace) workspace.style.display = 'flex';
+                if (wall) wall.style.display = currentUser ? 'none' : 'flex';
+                if (workspace) workspace.style.display = currentUser ? 'flex' : 'none';
+                if (!currentUser) closeChatsDrawer();
             }
 
             // ===== Модальное окно входа =====
@@ -3297,14 +3308,110 @@ Interface language: English. The whole app is now in English, so always answer t
                 if (e.key !== 'Escape') return;
                 closeAccountMenu();
                 closeChatsDrawer();
-                const modal = $('auth-modal');
-                if (modal && modal.style.display === 'flex') closeAuthModal();
+                const authModal = $('auth-modal');
+                if (authModal && authModal.style.display === 'flex') closeAuthModal();
+                const settingsModal = $('settings-modal');
+                if (settingsModal && settingsModal.style.display === 'flex') closeSettingsModal();
             });
 
             window.addEventListener('resize', function () {
                 if (window.innerWidth >= 1024) closeChatsDrawer();
             });
+
+            function openSettingsModal() {
+                if (!currentUser) { openAuthModal('login'); return; }
+                const nameEl = $('settings-name');
+                const emailEl = $('settings-email');
+                const passEl = $('settings-password');
+                const msg = $('settings-msg');
+                if (nameEl) nameEl.value = currentUser.displayName || '';
+                if (emailEl) emailEl.value = currentUser.email || '';
+                if (passEl) passEl.value = '';
+                if (msg) { msg.classList.add('hidden'); msg.textContent = ''; }
+                const modal = $('settings-modal');
+                if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+            }
+            function closeSettingsModal() {
+                const modal = $('settings-modal');
+                if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
+            }
+            async function saveProfileSettings() {
+                if (!currentUser) return;
+                const nameEl = $('settings-name');
+                const passEl = $('settings-password');
+                const msg = $('settings-msg');
+                const name = nameEl ? nameEl.value.trim() : '';
+                const newPassword = passEl ? passEl.value : '';
+                try {
+                    if (name && name !== (currentUser.displayName || '')) {
+                        await currentUser.updateProfile({ displayName: name });
+                    }
+                    if (newPassword) {
+                        if (newPassword.length < 6) throw new Error('Пароль должен быть не короче 6 символов.');
+                        await currentUser.updatePassword(newPassword);
+                    }
+                    if (typeof saveUserProfile === 'function') saveUserProfile(currentUser);
+                    if (msg) {
+                        msg.textContent = 'Сохранено.';
+                        msg.className = 'text-sm rounded-xl px-3 py-2 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+                        msg.classList.remove('hidden');
+                    }
+                    if (passEl) passEl.value = '';
+                    updateUserUI(currentUser);
+                } catch (err) {
+                    if (msg) {
+                        msg.textContent = (err && err.message) ? err.message : 'Не удалось сохранить.';
+                        msg.className = 'text-sm rounded-xl px-3 py-2 bg-red-500/15 text-red-300 border border-red-500/30';
+                        msg.classList.remove('hidden');
+                    }
+                }
+            }
+            window.openSettingsModal = openSettingsModal;
+            window.closeSettingsModal = closeSettingsModal;
+            window.saveProfileSettings = saveProfileSettings;
+
+            // Escape key: close settings modal too
+            // (patched below in keydown handler)
         })();
     </script>
+
+    <div id="settings-modal" class="fixed inset-0 z-[100] items-center justify-center p-4 bg-black/70 backdrop-blur-sm" style="display:none" onclick="if (event.target === this) closeSettingsModal();">
+        <div class="relative w-full max-w-md bg-dark-800 border border-dark-600 rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto">
+            <button onclick="closeSettingsModal()" title="Закрыть" aria-label="Закрыть"
+                    class="absolute top-3 right-3 w-8 h-8 rounded-lg bg-dark-700 hover:bg-dark-600 text-gray-400 hover:text-white flex items-center justify-center transition-all z-10">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="p-6 md:p-7">
+                <div class="text-center mb-5">
+                    <div class="w-12 h-12 mx-auto rounded-2xl bg-primary/20 text-primary-light flex items-center justify-center text-xl mb-3">
+                        <i class="fa-solid fa-gear"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white">Настройки профиля</h3>
+                    <p class="text-xs text-gray-400 mt-1">Управление аккаунтом</p>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1.5">Имя</label>
+                        <input id="settings-name" type="text" class="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-primary" placeholder="Ваше имя">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1.5">Email</label>
+                        <input id="settings-email" type="email" class="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-primary" disabled>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1.5">Новый пароль (оставьте пустым, чтобы не менять)</label>
+                        <input id="settings-password" type="password" class="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-primary" placeholder="Минимум 6 символов">
+                    </div>
+                    <div id="settings-msg" class="hidden text-sm rounded-xl px-3 py-2"></div>
+                    <button onclick="saveProfileSettings()" class="w-full px-4 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-medium transition-all">
+                        Сохранить
+                    </button>
+                    <button onclick="signOutUser()" class="w-full px-4 py-3 rounded-xl bg-dark-700 hover:bg-dark-600 text-red-300 font-medium border border-dark-600 transition-all">
+                        Выйти из аккаунта
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
