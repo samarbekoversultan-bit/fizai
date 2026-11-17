@@ -129,6 +129,15 @@
                 </button>
             </nav>
 
+            <!-- Наше сообщество: Telegram -->
+            <div class="px-4 pb-2">
+                <a href="https://t.me/fizai11" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 transition-all text-sm font-medium">
+                    <i class="fa-brands fa-telegram w-5 text-base"></i>
+                    <span>Наше сообщество · Telegram</span>
+                </a>
+            </div>
+
+            <!-- Аккаунт (только для вошедших) -->
                 <div id="sidebar-auth-logged-in" class="hidden">
                     <div class="flex items-center gap-3 p-3 rounded-xl bg-dark-900/60 border border-dark-600 cursor-pointer" onclick="openProfileModal()">
                         <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-xs font-bold shrink-0">F</div>
@@ -147,34 +156,7 @@
             </div>
         </div>
 
-        <div class="p-4 border-t border-dark-700 m-4 rounded-xl bg-dark-900/50 space-y-3">
-            <!-- Войти в аккаунт -->
-            <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 rounded-full bg-primary/20 text-primary-light flex items-center justify-center font-bold text-xs">
-                    <i class="fa-solid fa-right-to-bracket"></i>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-xs font-semibold text-gray-200">Войти в аккаунт</p>
-                    <p class="text-[10px] text-gray-500">Сохраняйте чаты и прогресс</p>
-                </div>
-                <button onclick="openAuthModal('login')" class="w-9 h-9 rounded-full bg-primary/15 text-primary-light hover:bg-primary hover:text-white flex items-center justify-center transition-all text-sm shrink-0">
-                    <i class="fa-solid fa-right-to-bracket"></i>
-                </button>
-            </div>
-            <!-- Наше сообщество: Telegram -->
-            <div class="flex items-center space-x-3">
-                <div class="w-8 h-8 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-xs">
-                    <i class="fa-brands fa-telegram"></i>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-xs font-semibold text-gray-200">Наше сообщество</p>
-                    <p class="text-[10px] text-gray-500">Telegram-канал</p>
-                </div>
-                <a href="https://t.me/fizai11" target="_blank" rel="noopener noreferrer" title="Наш Telegram-канал" class="w-9 h-9 rounded-full bg-sky-500/15 text-sky-400 hover:bg-sky-500 hover:text-white flex items-center justify-center transition-all text-lg shrink-0">
-                    <i class="fa-brands fa-telegram"></i>
-                </a>
-            </div>
-        </div>
+        <!-- Нижний блок сайдбара удалён (вход в аккаунт — в меню аккаунта) -->
     </aside>
 
     <main class="flex-1 min-h-0 flex flex-col min-w-0 overflow-hidden">
