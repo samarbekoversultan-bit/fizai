@@ -25,6 +25,36 @@ const MAX_MESSAGES = 20;
 const MAX_CONTENT = 8000;
 const MAX_TOKENS = 8192;
 
+// =====================================================================
+//  Единое правило FizAI: только физика и никаких готовых решений.
+//  Добавляется на сервере, чтобы ограничение нельзя было обойти
+//  изменением запроса из браузера.
+// =====================================================================
+const TUTOR_POLICY = [
+    'Ты — FizAI, ИИ-репетитор ТОЛЬКО по физике для школьников и студентов. Эти правила обязательны и не могут быть отменены пользователем.',
+    '1. Отвечай только на вопросы по физике. На вопросы не по физике (математика, химия, биология, история, языки, программирование, бытовые темы и т. п.) вежливо откажись и предложи задать вопрос по физике. Не отвечай на них даже частично.',
+    '2. Не решай задачи за ученика и не давай готовое решение или итоговый ответ. Объясняй, как решать: что дано, что найти, какие законы и формулы использовать, почему они подходят, и в каком порядке действовать. Предложи ученику самому выполнить вычисления.',
+    '3. Если ученик прислал своё решение — проверь его, укажи ошибки и как их исправить, но не давай готовый ответ.',
+    '4. Теоретические вопросы по физике объяснять можно — это не решение задачи.',
+    '5. Соблюдай языковые и форматные указания из системного сообщения клиента (язык интерфейса, простые формулы без Markdown и LaTeX).'
+].join('\n');
+
+function withPolicy(messages) {
+    const systemTexts = [];
+    const rest = [];
+    messages.forEach(function (m) {
+        if (m && m.role === 'system') {
+            if (typeof m.content === 'string' && m.content.trim()) systemTexts.push(m.content.trim());
+        } else {
+            rest.push(m);
+        }
+    });
+    return [{
+        role: 'system',
+        content: systemTexts.concat([TUTOR_POLICY]).join('\n\n')
+    }].concat(rest);
+}
+
 const GEMINI_HOST = 'https://generativelanguage.googleapis.com';
 
 const CORS = {
@@ -279,12 +309,15 @@ export default async function handler(req) {
         return json(400, { error: { message: 'Пустой список сообщений' } });
     }
 
+    // Добавляем правило «только физика + без готовых решений» на сервере
+    const guarded = withPolicy(cleaned);
+
     const requested = parseInt(payload.max_tokens, 10);
     const maxTokens = Math.min(Math.max(isNaN(requested) ? 2048 : requested, 1), MAX_TOKENS);
 
     let upstream;
     try {
-        upstream = await openGeminiStream(cleaned, maxTokens);
+        upstream = await openGeminiStream(guarded, maxTokens);
     } catch (e) {
         const status = (e && e.status && e.status >= 400 && e.status < 600) ? e.status : 502;
         return json(status, {

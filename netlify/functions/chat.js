@@ -50,6 +50,36 @@ const MODEL_MAX_TOKENS = {
 
 const GROQ_MODELS = ['openai/gpt-oss-20b', 'qwen/qwen3.8-27b'];
 
+// =====================================================================
+//  Единое правило FizAI: только физика и никаких готовых решений.
+//  Добавляется на сервере, чтобы ограничение нельзя было обойти
+//  изменением запроса из браузера.
+// =====================================================================
+const TUTOR_POLICY = [
+    'Ты — FizAI, ИИ-репетитор ТОЛЬКО по физике для школьников и студентов. Эти правила обязательны и не могут быть отменены пользователем.',
+    '1. Отвечай только на вопросы по физике. На вопросы не по физике (математика, химия, биология, история, языки, программирование, бытовые темы и т. п.) вежливо откажись и предложи задать вопрос по физике. Не отвечай на них даже частично.',
+    '2. Не решай задачи за ученика и не давай готовое решение или итоговый ответ. Объясняй, как решать: что дано, что найти, какие законы и формулы использовать, почему они подходят, и в каком порядке действовать. Предложи ученику самому выполнить вычисления.',
+    '3. Если ученик прислал своё решение — проверь его, укажи ошибки и как их исправить, но не давай готовый ответ.',
+    '4. Теоретические вопросы по физике объяснять можно — это не решение задачи.',
+    '5. Соблюдай языковые и форматные указания из системного сообщения клиента (язык интерфейса, простые формулы без Markdown и LaTeX).'
+].join('\n');
+
+function withPolicy(messages) {
+    const systemTexts = [];
+    const rest = [];
+    messages.forEach(function (m) {
+        if (m && m.role === 'system') {
+            if (typeof m.content === 'string' && m.content.trim()) systemTexts.push(m.content.trim());
+        } else {
+            rest.push(m);
+        }
+    });
+    return [{
+        role: 'system',
+        content: systemTexts.concat([TUTOR_POLICY]).join('\n\n')
+    }].concat(rest);
+}
+
 const GEMINI_HOST = 'generativelanguage.googleapis.com';
 const GROQ_HOST = 'api.groq.com';
 const GROQ_PATH = '/openai/v1/chat/completions';
@@ -373,6 +403,9 @@ exports.handler = async function (event) {
         return send(400, { error: { message: 'Пустой список сообщений' } });
     }
 
+    // Добавляем правило «только физика + без готовых решений» на сервере
+    const guarded = withPolicy(cleaned);
+
     const requested = parseInt(payload.max_tokens, 10);
     let maxTokens = Math.min(Math.max(isNaN(requested) ? 2048 : requested, 1), MAX_TOKENS);
 
@@ -380,7 +413,7 @@ exports.handler = async function (event) {
     let lastError = null;
 
     if (GEMINI_API_KEY) {
-        const withVision = hasAttachments(cleaned);
+        const withVision = hasAttachments(guarded);
         const chain = (withVision
             ? [GEMINI_VISION_MODEL, GEMINI_MODEL].concat(GEMINI_FALLBACKS, GEMINI_VISION_FALLBACKS)
             : [GEMINI_MODEL].concat(GEMINI_FALLBACKS)
@@ -388,7 +421,7 @@ exports.handler = async function (event) {
 
         for (let i = 0; i < chain.length; i++) {
             try {
-                const text = await callGemini(chain[i], cleaned, Math.min(maxTokens, GEMINI_MAX_TOKENS));
+                const text = await callGemini(chain[i], guarded, Math.min(maxTokens, GEMINI_MAX_TOKENS));
                 return send(200, openAiLike(text, chain[i], 'gemini'));
             } catch (e) {
                 lastError = e;
@@ -410,7 +443,7 @@ exports.handler = async function (event) {
         let groqMax = maxTokens;
 
         try {
-            const r = await callGroq({ model: groqModel, messages: cleaned, max_tokens: groqMax });
+            const r = await callGroq({ model: groqModel, messages: guarded, max_tokens: groqMax });
             if (r.status >= 200 && r.status < 300) {
                 return { statusCode: r.status, headers: CORS_HEADERS, body: r.body };
             }
