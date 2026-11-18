@@ -123,10 +123,6 @@
                     <span>Квизы</span>
                     <span class="ml-auto text-[10px] bg-accent text-white px-1.5 py-0.5 rounded-full font-bold not-italic">NEW</span>
                 </button>
-                <button onclick="switchTab('stats')" id="nav-stats" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-gray-400 hover:bg-dark-700 hover:text-gray-200">
-                    <i class="fa-solid fa-chart-simple w-5"></i>
-                    <span>Статистика</span>
-                </button>
                 <button onclick="switchTab('rating')" id="nav-rating" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-gray-400 hover:bg-dark-700 hover:text-gray-200">
                     <i class="fa-solid fa-trophy w-5"></i>
                     <span>Рейтинг</span>
@@ -520,11 +516,8 @@
                         <p class="text-gray-400 text-sm">Выбери класс (7–11), а дальше отвечай на вопросы по его программе: четыре варианта ответа, каждый раз всё заново</p>
                     </div>
                     <div class="flex items-center gap-2 self-start md:self-auto">
-                        <button onclick="switchTab('stats')" class="text-xs bg-primary/20 hover:bg-primary/30 text-primary-light px-3 py-1.5 rounded-full border border-primary/30 transition-all">
-                            <i class="fa-solid fa-chart-simple mr-1"></i>Моя статистика
-                        </button>
                         <button onclick="switchTab('rating')" class="text-xs bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 px-3 py-1.5 rounded-full border border-amber-500/30 transition-all">
-                            <i class="fa-solid fa-trophy mr-1"></i>Рейтинг
+                            <i class="fa-solid fa-trophy mr-1"></i>Рейтинг и статистика
                         </button>
                         <span class="text-xs bg-accent/20 text-accent px-3 py-1 rounded-full border border-accent/30">✨ Новое</span>
                     </div>
@@ -533,34 +526,12 @@
                 <div id="quiz-card"></div>
             </section>
 
-            <!-- STATS -->
-            <section id="view-stats" class="tab-content hidden max-w-4xl mx-auto space-y-6">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h3 class="text-xl md:text-2xl font-bold text-white">Статистика квизов</h3>
-                        <p class="text-gray-400 text-sm">Твой прогресс: результаты по классам и последние попытки</p>
-                    </div>
-                    <div class="flex items-center gap-2 self-start md:self-auto">
-                        <button onclick="switchTab('quizzes')" class="text-xs bg-primary/20 hover:bg-primary/30 text-primary-light px-3 py-1.5 rounded-lg border border-primary/30 transition-all">
-                            <i class="fa-solid fa-play mr-1"></i>Пройти квиз
-                        </button>
-                        <button onclick="switchTab('rating')" class="text-xs bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 px-3 py-1.5 rounded-lg border border-amber-500/30 transition-all">
-                            <i class="fa-solid fa-trophy mr-1"></i>Рейтинг
-                        </button>
-                        <button onclick="resetQuizStats()" id="stats-reset-btn" class="text-xs bg-dark-700 hover:bg-red-500/20 text-gray-400 hover:text-red-300 px-3 py-1.5 rounded-lg border border-dark-600 hover:border-red-500/30 transition-all">
-                            <i class="fa-solid fa-trash-can mr-1"></i>Сбросить
-                        </button>
-                    </div>
-                </div>
-                <div id="stats-content"></div>
-            </section>
-
-            <!-- RATING -->
+            <!-- RATING + STATS -->
             <section id="view-rating" class="tab-content hidden max-w-4xl mx-auto space-y-6">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h3 class="text-xl md:text-2xl font-bold text-white">Рейтинг игроков</h3>
-                        <p class="text-gray-400 text-sm">Общий зачёт ELO: чем выше класс и лучше результат, тем больше очков</p>
+                        <p class="text-gray-400 text-sm">Общий зачёт ELO и твоя статистика квизов. Нажми на игрока, чтобы открыть профиль.</p>
                     </div>
                     <button onclick="switchTab('quizzes')" class="text-xs bg-primary/20 hover:bg-primary/30 text-primary-light px-3 py-1.5 rounded-lg border border-primary/30 transition-all self-start md:self-auto">
                         <i class="fa-solid fa-play mr-1"></i>Пройти квиз
@@ -574,6 +545,16 @@
                     </div>
                     <div id="leaderboard-list" class="space-y-2"></div>
                 </div>
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <h4 class="font-semibold text-gray-200">Моя статистика</h4>
+                        <p class="text-xs text-gray-500">Результаты по классам и последние попытки</p>
+                    </div>
+                    <button onclick="resetQuizStats()" id="stats-reset-btn" class="text-xs bg-dark-700 hover:bg-red-500/20 text-gray-400 hover:text-red-300 px-3 py-1.5 rounded-lg border border-dark-600 hover:border-red-500/30 transition-all shrink-0">
+                        <i class="fa-solid fa-trash-can mr-1"></i>Сбросить
+                    </button>
+                </div>
+                <div id="stats-content"></div>
                 <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 md:p-6">
                     <h4 class="font-semibold text-gray-200 mb-3">Как начисляется ELO</h4>
                     <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -727,7 +708,6 @@
             formulas: ['Справочник формул', 'Formula Reference', 'Формулалар анықтамасы'],
             calculators: ['Интерактивные калькуляторы', 'Interactive Calculators', 'Интерактивті калькуляторлар'],
             quizzes: ['Квизы по физике', 'Physics Quizzes', 'Физика квиздері'],
-            stats: ['Статистика квизов', 'Quiz Statistics', 'Квиз статистикасы'],
             rating: ['Рейтинг игроков', 'Player Leaderboard', 'Ойыншылар рейтингі'],
             admin: ['Админ-панель', 'Admin Panel', 'Әкімші панелі']
         };
@@ -1149,15 +1129,17 @@
 
         window.switchTab = function(tabId) {
             // Закрытые разделы доступны только после входа в аккаунт
-            var PROTECTED_TABS = ['ai', 'quizzes', 'stats', 'rating', 'calculators', 'formulas', 'admin'];
+            var PROTECTED_TABS = ['ai', 'quizzes', 'rating', 'calculators', 'formulas', 'admin'];
             if (PROTECTED_TABS.indexOf(tabId) !== -1 && !(window.fizaiAuth && window.fizaiAuth.isSignedIn())) {
                 if (typeof window.openAuthModal === 'function') window.openAuthModal('login');
                 return;
             }
             var prevTab = currentTab;
             currentTab = tabId;
-            if (tabId === 'stats' && typeof window.renderQuizStats === 'function') window.renderQuizStats();
-            if (tabId === 'rating' && typeof window.renderLeaderboard === 'function') window.renderLeaderboard();
+            if (tabId === 'rating') {
+                if (typeof window.renderLeaderboard === 'function') window.renderLeaderboard();
+                if (typeof window.renderQuizStats === 'function') window.renderQuizStats();
+            }
             if (tabId === 'ai') {
                 warmUpAI();
                 if (prevTab !== 'ai' && typeof window.resetChatSession === 'function') window.resetChatSession();
@@ -1832,7 +1814,7 @@
                         <div class="flex flex-wrap items-center justify-center gap-3">
                             <button onclick="restartQuiz()" class="px-6 py-3 bg-primary hover:bg-primary-hover text-white font-medium rounded-xl transition-all">${pick('Играть снова', 'Play again')}</button>
                             <button onclick="changeQuizGrade()" class="px-6 py-3 bg-dark-700 hover:bg-dark-600 text-gray-200 font-medium rounded-xl border border-dark-600 transition-all">${pick('Сменить класс', 'Change grade')}</button>
-                            <button onclick="switchTab('stats')" class="px-6 py-3 bg-dark-700 hover:bg-dark-600 text-gray-200 font-medium rounded-xl border border-dark-600 transition-all flex items-center gap-2"><i class="fa-solid fa-chart-simple"></i><span>${pick('Моя статистика', 'My statistics')}</span></button>
+                            <button onclick="switchTab('rating')" class="px-6 py-3 bg-dark-700 hover:bg-dark-600 text-gray-200 font-medium rounded-xl border border-dark-600 transition-all flex items-center gap-2"><i class="fa-solid fa-trophy"></i><span>${pick('Рейтинг и статистика', 'Rating & stats')}</span></button>
                             ${quizWrong.length ? `<button onclick="askTutorAboutQuiz()" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition-all flex items-center gap-2"><i class="fa-solid fa-robot"></i><span>${pick('Спросить у репетитора', 'Ask the tutor')}</span></button>` : ''}
                         </div>
                     </div>`;
@@ -2103,7 +2085,6 @@
 
             if (!arr.length) {
                 el.innerHTML = `
-                    <div id="stats-elo-card"></div>
                     <div class="bg-dark-800 border border-dark-600 rounded-2xl p-8 md:p-12 text-center space-y-4">
                         <div class="w-16 h-16 mx-auto rounded-full bg-primary/15 text-primary-light flex items-center justify-center text-2xl">
                             <i class="fa-solid fa-chart-simple"></i>
@@ -2115,7 +2096,6 @@
                             <span>${pick('Пройти квиз', 'Take a quiz')}</span>
                         </button>
                     </div>`;
-                if (typeof renderStatsEloCard === 'function') renderStatsEloCard();
                 return;
             }
 
@@ -2194,7 +2174,6 @@
             }).join('');
 
             el.innerHTML = `
-                <div id="stats-elo-card"></div>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 text-center">
                         <p class="text-2xl md:text-3xl font-extrabold text-primary-light">${attempts}</p>
@@ -2226,7 +2205,6 @@
                     <h4 class="font-semibold text-gray-200 mb-4">${pick('Последние попытки', 'Recent attempts')}</h4>
                     <div class="space-y-2">${recentRows}</div>
                 </div>`;
-            if (typeof renderStatsEloCard === 'function') renderStatsEloCard();
         }
         window.renderQuizStats = renderQuizStats;
 
@@ -2253,37 +2231,27 @@
             renderQuizStats();
         };
 
-        // ===== ELO: карточка в статистике, рейтинг игроков и админ-панель =====
-        function renderStatsEloCard() {
-            const el = document.getElementById('stats-elo-card');
-            if (!el) return;
-            const loaded = window.fizaiElo && window.fizaiElo.isLoaded ? window.fizaiElo.isLoaded() : false;
-            const me = (window.fizaiElo && window.fizaiElo.getMe) ? window.fizaiElo.getMe() : null;
-            const players = (window.fizaiElo && window.fizaiElo.getPlayers) ? window.fizaiElo.getPlayers() : [];
-            const idx = me ? players.findIndex(function (p) { return p.uid === me.uid; }) : -1;
-            const rank = idx >= 0 ? idx + 1 : 0;
-            if (!loaded) {
-                el.innerHTML = `<div class="mb-6 bg-dark-800 border border-dark-600 rounded-2xl p-5 flex items-center gap-3 text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i><span class="text-sm">${pick('Загружаем ELO...', 'Loading ELO...')}</span></div>`;
-                return;
+        // ===== ELO: рейтинг игроков, профили и админ-панель =====
+        const ELO_LEVELS = [
+            { min: 0, ru: 'Новичок', en: 'Rookie' },
+            { min: 50, ru: 'Ученик', en: 'Learner' },
+            { min: 150, ru: 'Знаток', en: 'Adept' },
+            { min: 300, ru: 'Эксперт', en: 'Expert' },
+            { min: 600, ru: 'Мастер', en: 'Master' },
+            { min: 1000, ru: 'Легенда физики', en: 'Physics Legend' }
+        ];
+        function eloLevelInfo(elo) {
+            const v = Math.max(0, Number(elo) || 0);
+            let cur = ELO_LEVELS[0];
+            let next = null;
+            for (let i = 0; i < ELO_LEVELS.length; i++) {
+                if (v >= ELO_LEVELS[i].min) cur = ELO_LEVELS[i];
+                if (v < ELO_LEVELS[i].min) { next = ELO_LEVELS[i]; break; }
             }
-            el.innerHTML = `
-                <div class="mb-6 bg-gradient-to-r from-amber-500/15 via-dark-800 to-primary/10 border border-amber-500/30 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0">
-                            <i class="fa-solid fa-bolt"></i>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-gray-400 uppercase tracking-wider">${pick('Ваш ELO', 'Your ELO')}</p>
-                            <p class="text-2xl font-extrabold text-white">${me ? me.elo : 0}${rank ? `<span class="text-sm font-semibold text-amber-400 ml-2">#${rank}</span>` : ''}</p>
-                            <p class="text-xs text-gray-500">${pick('из', 'of')} ${players.length} ${pick(pluralQuizzes(players.length).replace('квиз', 'игрок'), 'players')}</p>
-                        </div>
-                    </div>
-                    <button onclick="switchTab('rating')" class="self-start sm:self-auto px-4 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-sm font-medium border border-amber-500/30 transition-all">
-                        ${pick('Рейтинг игроков', 'Leaderboard')} <i class="fa-solid fa-arrow-right ml-1"></i>
-                    </button>
-                </div>`;
+            const span = next ? (next.min - cur.min) : 0;
+            const progress = next && span > 0 ? Math.max(0, Math.min(100, Math.round((v - cur.min) / span * 100))) : 100;
+            return { level: cur, next: next, progress: progress };
         }
-        window.renderStatsEloCard = renderStatsEloCard;
 
         function renderMyEloCard() {
             const el = document.getElementById('my-elo-card');
@@ -2297,8 +2265,10 @@
                 el.innerHTML = `<div class="bg-dark-800 border border-dark-600 rounded-2xl p-6 flex items-center gap-3 text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i><span class="text-sm">${pick('Загружаем ваш ELO...', 'Loading your ELO...')}</span></div>`;
                 return;
             }
+            const myUid = (window.fizaiElo && window.fizaiElo.getUid) ? window.fizaiElo.getUid() : '';
+            const clickable = !!(me && myUid);
             el.innerHTML = `
-                <div class="bg-gradient-to-r from-amber-500/15 via-dark-800 to-primary/10 border border-amber-500/30 rounded-2xl p-5 md:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                <div ${clickable ? `onclick="openPlayerProfile('${String(myUid).replace(/[^A-Za-z0-9_-]/g, '')}')" role="button" tabindex="0" title="${pick('Открыть профиль', 'Open profile')}"` : ''} class="bg-gradient-to-r from-amber-500/15 via-dark-800 to-primary/10 border border-amber-500/30 rounded-2xl p-5 md:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5 ${clickable ? 'cursor-pointer hover:border-amber-400/60 transition-all' : ''}">
                     <div class="flex items-center gap-4">
                         <div class="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl shrink-0">
                             <i class="fa-solid fa-bolt"></i>
@@ -2306,7 +2276,7 @@
                         <div>
                             <p class="text-[10px] text-gray-400 uppercase tracking-wider">${pick('Ваш ELO', 'Your ELO')}</p>
                             <p class="text-3xl font-extrabold text-white">${me ? me.elo : 0}${rank ? `<span class="text-base font-semibold text-amber-400 ml-2">#${rank}</span>` : ''}</p>
-                            <p class="text-xs text-gray-500">${rank ? pick('Место в рейтинге', 'Leaderboard rank') + ' · ' : ''}${players.length} ${pick('игроков', 'players')}</p>
+                            <p class="text-xs text-gray-500">${rank ? pick('Место в рейтинге', 'Leaderboard rank') + ' · ' : ''}${players.length} ${pick('игроков', 'players')}${clickable ? ' · ' + pick('нажми, чтобы открыть профиль', 'tap to open profile') : ''}</p>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-4 text-center sm:text-right">
@@ -2357,8 +2327,9 @@
                 else if (rank === 2) medal = '<span class="text-lg">🥈</span>';
                 else if (rank === 3) medal = '<span class="text-lg">🥉</span>';
                 const initial = String(p.name || 'И').trim().charAt(0).toUpperCase() || 'И';
+                const safeUid = String(p.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
                 return `
-                    <div class="flex items-center gap-3 px-3 py-3 rounded-xl border ${me ? 'border-primary/50 bg-primary/10' : 'border-dark-600 bg-dark-900/60'}">
+                    <button type="button" onclick="openPlayerProfile('${safeUid}')" title="${pick('Открыть профиль', 'Open profile')}" class="w-full text-left flex items-center gap-3 px-3 py-3 rounded-xl border ${me ? 'border-primary/50 bg-primary/10 hover:border-primary/70' : 'border-dark-600 bg-dark-900/60 hover:border-primary/40'} hover:bg-dark-800 transition-all">
                         <div class="w-8 flex items-center justify-center shrink-0">${medal}</div>
                         <div class="w-9 h-9 rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-sm font-bold shrink-0">${escapeHtml(initial)}</div>
                         <div class="flex-1 min-w-0">
@@ -2369,11 +2340,66 @@
                             <p class="text-lg font-extrabold text-amber-400">${p.elo}</p>
                             <p class="text-[10px] text-gray-500 uppercase tracking-wider">ELO</p>
                         </div>
-                    </div>`;
+                        <i class="fa-solid fa-chevron-right text-[10px] text-gray-600 shrink-0"></i>
+                    </button>`;
             }).join('');
             renderMyEloCard();
         }
         window.renderLeaderboard = renderLeaderboard;
+
+        // ===== Профиль игрока из рейтинга =====
+        let playerProfileUid = '';
+        window.openPlayerProfile = function (uid) {
+            playerProfileUid = String(uid || '').replace(/[^A-Za-z0-9_-]/g, '');
+            if (!playerProfileUid) return;
+            const modal = document.getElementById('player-modal');
+            if (modal) {
+                modal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            }
+            window.renderPlayerProfile();
+        };
+        window.closePlayerProfile = function () {
+            const modal = document.getElementById('player-modal');
+            if (modal) modal.style.display = 'none';
+            playerProfileUid = '';
+            document.body.style.overflow = '';
+        };
+        window.renderPlayerProfile = function () {
+            const modal = document.getElementById('player-modal');
+            if (!modal || modal.style.display === 'none' || !playerProfileUid) return;
+            const players = (window.fizaiElo && window.fizaiElo.getPlayers) ? window.fizaiElo.getPlayers() : [];
+            const myUid = (window.fizaiElo && window.fizaiElo.getUid) ? window.fizaiElo.getUid() : '';
+            const idx = players.findIndex(function (p) { return p.uid === playerProfileUid; });
+            const p = idx >= 0 ? players[idx] : null;
+            const isMe = !!myUid && playerProfileUid === myUid;
+            const name = p ? p.name : pick('Игрок', 'Player');
+            const elo = p ? p.elo : 0;
+            const rank = p ? idx + 1 : 0;
+            const quizzes = p ? p.quizzes : 0;
+            const best = p ? p.best : 0;
+            const lvl = eloLevelInfo(elo);
+            const setText = function (id, text) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+            setText('player-modal-name', name);
+            setText('player-modal-sub', isMe ? pick('Это вы · ваш профиль', 'This is you · your profile') : pick('Профиль игрока FizAI', 'FizAI player profile'));
+            setText('player-modal-avatar', String(name).trim().charAt(0).toUpperCase() || 'И');
+            setText('player-modal-elo', String(elo));
+            setText('player-modal-rank', rank ? '#' + rank : '—');
+            setText('player-modal-quizzes', String(quizzes));
+            setText('player-modal-best', best + '%');
+            setText('player-modal-level', pick(lvl.level.ru, lvl.level.en));
+            setText('player-modal-level-icon', elo >= 1000 ? '👑' : elo >= 600 ? '🏆' : elo >= 300 ? '💎' : elo >= 150 ? '⭐' : elo >= 50 ? '📘' : '🌱');
+            setText('player-modal-next', lvl.next
+                ? pick('До «' + lvl.next.ru + '»: ' + Math.max(0, lvl.next.min - elo) + ' ELO', 'To "' + lvl.next.en + '": ' + Math.max(0, lvl.next.min - elo) + ' ELO')
+                : pick('Максимальный уровень', 'Max level'));
+            const bar = document.getElementById('player-modal-progress');
+            if (bar) bar.style.width = lvl.progress + '%';
+            const fullBtn = document.getElementById('player-modal-full');
+            if (fullBtn) fullBtn.classList.toggle('hidden', !isMe);
+        };
 
         window.adminLoadEloPlayers = function () {
             const msg = document.getElementById('admin-elo-msg');
@@ -3360,7 +3386,7 @@ Interface language: English. The whole app is now in English, so always answer t
             }
             function notifyElo() {
                 if (typeof window.renderLeaderboard === 'function') window.renderLeaderboard();
-                if (typeof window.renderStatsEloCard === 'function') window.renderStatsEloCard();
+                if (typeof window.renderPlayerProfile === 'function') window.renderPlayerProfile();
             }
             function attachEloListener() {
                 if (eloListenerAttached) return;
@@ -4559,6 +4585,62 @@ Interface language: English. The whole app is now in English, so always answer t
                     </button>
                     <button onclick="signOutUser()" class="flex-1 px-4 py-3 rounded-xl bg-dark-700 hover:bg-dark-600 text-red-300 font-medium border border-dark-600 transition-all">
                         Выйти
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Профиль игрока из рейтинга -->
+    <div id="player-modal" class="fixed inset-0 z-[100] items-center justify-center p-4 bg-black/70 backdrop-blur-sm" style="display:none" onclick="if (event.target === this) closePlayerProfile();">
+        <div class="relative w-full max-w-md bg-dark-800 border border-dark-600 rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto">
+            <button onclick="closePlayerProfile()" title="Закрыть" aria-label="Закрыть"
+                    class="absolute top-3 right-3 w-8 h-8 rounded-lg bg-dark-700 hover:bg-dark-600 text-gray-400 hover:text-white flex items-center justify-center transition-all z-10">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="p-6 md:p-7">
+                <div class="text-center mb-5">
+                    <div id="player-modal-avatar" class="w-20 h-20 mx-auto rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-3xl font-bold mb-3">И</div>
+                    <h3 id="player-modal-name" class="text-xl font-bold text-white break-words">Игрок</h3>
+                    <p id="player-modal-sub" class="text-xs text-gray-400 mt-1">Профиль игрока FizAI</p>
+                </div>
+                <div class="bg-gradient-to-r from-amber-500/15 via-dark-900/40 to-primary/10 border border-amber-500/30 rounded-2xl p-4 mb-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <p class="text-[10px] text-gray-400 uppercase tracking-wider">ELO</p>
+                            <p id="player-modal-elo" class="text-3xl font-extrabold text-amber-400">0</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-400 uppercase tracking-wider">Место в рейтинге</p>
+                            <p id="player-modal-rank" class="text-2xl font-extrabold text-white">—</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3 text-center">
+                        <p id="player-modal-quizzes" class="text-2xl font-extrabold text-primary-light">0</p>
+                        <p class="text-[10px] text-gray-500 uppercase tracking-wider">Квизов пройдено</p>
+                    </div>
+                    <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3 text-center">
+                        <p id="player-modal-best" class="text-2xl font-extrabold text-emerald-400">0%</p>
+                        <p class="text-[10px] text-gray-500 uppercase tracking-wider">Лучший результат</p>
+                    </div>
+                </div>
+                <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-4 mb-5">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <p class="text-sm text-gray-200"><span id="player-modal-level-icon">🌱</span> <span id="player-modal-level">Новичок</span></p>
+                        <p id="player-modal-next" class="text-[11px] text-gray-500"></p>
+                    </div>
+                    <div class="w-full bg-dark-800 rounded-full h-2.5 overflow-hidden">
+                        <div id="player-modal-progress" class="h-2.5 rounded-full bg-gradient-to-r from-amber-500 to-primary transition-all" style="width:0%"></div>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <button id="player-modal-full" onclick="closePlayerProfile(); openProfileModal();" class="hidden w-full px-4 py-3 rounded-xl bg-primary hover:bg-primary-hover text-white font-medium transition-all">
+                        Мой профиль и прогресс
+                    </button>
+                    <button onclick="closePlayerProfile()" class="w-full px-4 py-3 rounded-xl bg-dark-700 hover:bg-dark-600 text-gray-200 font-medium border border-dark-600 transition-all">
+                        Закрыть
                     </button>
                 </div>
             </div>
