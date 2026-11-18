@@ -620,8 +620,8 @@
                 <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 md:p-6 space-y-4">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <h4 class="font-semibold text-gray-200">ELO игроков</h4>
-                            <p class="text-xs text-gray-500">Начислите или спишите очки любому игроку</p>
+                            <h4 class="font-semibold text-gray-200">ELO и привилегии игроков</h4>
+                            <p class="text-xs text-gray-500">Начисляйте ELO и выдавайте персональные привилегии</p>
                         </div>
                         <button onclick="adminLoadEloPlayers()" class="text-xs bg-dark-700 hover:bg-dark-600 text-gray-300 px-3 py-1.5 rounded-lg border border-dark-600 transition-all">
                             <i class="fa-solid fa-rotate mr-1"></i>Обновить
@@ -2267,6 +2267,7 @@
             }
             const myUid = (window.fizaiElo && window.fizaiElo.getUid) ? window.fizaiElo.getUid() : '';
             const clickable = !!(me && myUid);
+            const myPriv = me && me.privilege && me.privilege.title ? String(me.privilege.title) : '';
             el.innerHTML = `
                 <div ${clickable ? `onclick="openPlayerProfile('${String(myUid).replace(/[^A-Za-z0-9_-]/g, '')}')" role="button" tabindex="0" title="${pick('Открыть профиль', 'Open profile')}"` : ''} class="bg-gradient-to-r from-amber-500/15 via-dark-800 to-primary/10 border border-amber-500/30 rounded-2xl p-5 md:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5 ${clickable ? 'cursor-pointer hover:border-amber-400/60 transition-all' : ''}">
                     <div class="flex items-center gap-4">
@@ -2275,7 +2276,7 @@
                         </div>
                         <div>
                             <p class="text-[10px] text-gray-400 uppercase tracking-wider">${pick('Ваш ELO', 'Your ELO')}</p>
-                            <p class="text-3xl font-extrabold text-white">${me ? me.elo : 0}${rank ? `<span class="text-base font-semibold text-amber-400 ml-2">#${rank}</span>` : ''}</p>
+                            <p class="text-3xl font-extrabold text-white">${me ? me.elo : 0}${rank ? `<span class="text-base font-semibold text-amber-400 ml-2">#${rank}</span>` : ''}${myPriv ? ` <span class="inline-flex items-center text-[11px] font-semibold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-md align-middle">${escapeHtml(myPriv)}</span>` : ''}</p>
                             <p class="text-xs text-gray-500">${rank ? pick('Место в рейтинге', 'Leaderboard rank') + ' · ' : ''}${players.length} ${pick('игроков', 'players')}${clickable ? ' · ' + pick('нажми, чтобы открыть профиль', 'tap to open profile') : ''}</p>
                         </div>
                     </div>
@@ -2328,12 +2329,16 @@
                 else if (rank === 3) medal = '<span class="text-lg">🥉</span>';
                 const initial = String(p.name || 'И').trim().charAt(0).toUpperCase() || 'И';
                 const safeUid = String(p.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
+                const privTitle = p.privilege && p.privilege.title ? String(p.privilege.title) : '';
+                const privBadge = privTitle
+                    ? ` <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded-md align-middle">${escapeHtml(privTitle)}</span>`
+                    : '';
                 return `
                     <button type="button" onclick="openPlayerProfile('${safeUid}')" title="${pick('Открыть профиль', 'Open profile')}" class="w-full text-left flex items-center gap-3 px-3 py-3 rounded-xl border ${me ? 'border-primary/50 bg-primary/10 hover:border-primary/70' : 'border-dark-600 bg-dark-900/60 hover:border-primary/40'} hover:bg-dark-800 transition-all">
                         <div class="w-8 flex items-center justify-center shrink-0">${medal}</div>
                         <div class="w-9 h-9 rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-sm font-bold shrink-0">${escapeHtml(initial)}</div>
                         <div class="flex-1 min-w-0">
-                            <p class="text-sm font-medium text-gray-100 truncate">${escapeHtml(p.name)}${me ? ' <span class="text-[10px] text-primary-light">(' + pick('вы', 'you') + ')</span>' : ''}</p>
+                            <p class="text-sm font-medium text-gray-100 truncate">${escapeHtml(p.name)}${me ? ' <span class="text-[10px] text-primary-light">(' + pick('вы', 'you') + ')</span>' : ''}${privBadge}</p>
                             <p class="text-[11px] text-gray-500">${p.quizzes} ${pick(pluralQuizzes(p.quizzes), p.quizzes === 1 ? 'quiz' : 'quizzes')} · ${pick('лучший', 'best')} ${p.best}%</p>
                         </div>
                         <div class="text-right shrink-0">
@@ -2385,6 +2390,17 @@
             };
             setText('player-modal-name', name);
             setText('player-modal-sub', isMe ? pick('Это вы · ваш профиль', 'This is you · your profile') : pick('Профиль игрока FizAI', 'FizAI player profile'));
+            const priv = p && p.privilege && p.privilege.title ? p.privilege : null;
+            const privWrap = document.getElementById('player-modal-priv');
+            if (privWrap) privWrap.classList.toggle('hidden', !priv);
+            if (priv) {
+                setText('player-modal-priv-badge', priv.title);
+                const privDescEl = document.getElementById('player-modal-priv-desc');
+                if (privDescEl) {
+                    privDescEl.textContent = priv.desc || '';
+                    privDescEl.classList.toggle('hidden', !priv.desc);
+                }
+            }
             setText('player-modal-avatar', String(name).trim().charAt(0).toUpperCase() || 'И');
             setText('player-modal-elo', String(elo));
             setText('player-modal-rank', rank ? '#' + rank : '—');
@@ -2431,11 +2447,13 @@
             }
             el.innerHTML = list.map(function (p) {
                 const uid = String(p.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
+                const privTitle = p.privilege && p.privilege.title ? String(p.privilege.title) : '';
+                const privDesc = p.privilege && p.privilege.desc ? String(p.privilege.desc) : '';
                 return `
                     <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3 space-y-2">
                         <div class="flex flex-wrap items-center justify-between gap-3">
                             <div class="min-w-0">
-                                <p class="text-gray-200 truncate">${escapeHtml(p.name)} <span class="text-[10px] text-gray-500">ID ${escapeHtml(uid.slice(0, 8))}</span></p>
+                                <p class="text-gray-200 truncate">${escapeHtml(p.name)} <span class="text-[10px] text-gray-500">ID ${escapeHtml(uid.slice(0, 8))}</span>${privTitle ? ` <span class="text-[10px] font-semibold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded-md">${escapeHtml(privTitle)}</span>` : ''}</p>
                                 <p class="text-[11px] text-gray-500">ELO: <span class="text-amber-400 font-semibold">${p.elo}</span> · квизов: ${p.quizzes} · лучший: ${p.best}%</p>
                             </div>
                             <div class="flex gap-1.5 shrink-0">
@@ -2448,6 +2466,17 @@
                         <div class="flex gap-2">
                             <input id="admin-elo-amt-${uid}" type="number" placeholder="Своё значение (+/-)" class="flex-1 bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-400">
                             <button onclick="adminApplyEloDelta('${uid}')" class="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-dark-900 text-xs font-medium transition-all">Начислить</button>
+                        </div>
+                        <div class="border-t border-dark-600 pt-2.5 mt-1 space-y-2">
+                            <p class="text-[11px] text-gray-400">Привилегия: ${privTitle ? `<span class="text-amber-300 font-semibold">${escapeHtml(privTitle)}</span>` : '<span class="text-gray-500">не выдана</span>'}${privDesc ? `<span class="text-gray-500"> — ${escapeHtml(privDesc)}</span>` : ''}</p>
+                            <div class="flex gap-2">
+                                <input id="admin-priv-title-${uid}" type="text" maxlength="40" placeholder="Название (например, VIP)" value="${escapeHtml(privTitle)}" class="flex-1 bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-400">
+                                <button onclick="adminSavePrivilege('${uid}')" class="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-dark-900 text-xs font-medium transition-all shrink-0">Выдать</button>
+                            </div>
+                            <div class="flex gap-2">
+                                <input id="admin-priv-desc-${uid}" type="text" maxlength="160" placeholder="Описание привилегии (необязательно)" value="${escapeHtml(privDesc)}" class="flex-1 bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-400">
+                                <button onclick="adminClearPrivilege('${uid}')" class="px-3 py-2 rounded-lg bg-dark-700 hover:bg-red-500/20 text-gray-300 hover:text-red-300 border border-dark-600 hover:border-red-500/30 text-xs transition-all shrink-0">Убрать</button>
+                            </div>
                         </div>
                     </div>`;
             }).join('');
@@ -2478,6 +2507,44 @@
             }
             if (input) input.value = '';
             window.adminAdjustElo(uid, delta);
+        };
+
+        window.adminSavePrivilege = function (uid) {
+            const msg = document.getElementById('admin-elo-msg');
+            if (!window.fizaiElo || typeof window.fizaiElo.setPrivilege !== 'function') {
+                if (msg) msg.textContent = 'ELO-модуль не загрузился.';
+                return;
+            }
+            const titleEl = document.getElementById('admin-priv-title-' + uid);
+            const descEl = document.getElementById('admin-priv-desc-' + uid);
+            const title = titleEl ? titleEl.value : '';
+            const desc = descEl ? descEl.value : '';
+            if (!String(title).trim()) {
+                if (msg) msg.textContent = 'Введите название привилегии.';
+                return;
+            }
+            if (msg) msg.textContent = 'Выдаём привилегию...';
+            window.fizaiElo.setPrivilege(uid, title, desc).then(function (p) {
+                if (msg) msg.textContent = 'Привилегия «' + p.title + '» выдана.';
+                window.adminRenderEloList();
+            }).catch(function (e) {
+                if (msg) msg.textContent = 'Ошибка: ' + ((e && e.message) ? e.message : e);
+            });
+        };
+
+        window.adminClearPrivilege = function (uid) {
+            const msg = document.getElementById('admin-elo-msg');
+            if (!window.fizaiElo || typeof window.fizaiElo.clearPrivilege !== 'function') {
+                if (msg) msg.textContent = 'ELO-модуль не загрузился.';
+                return;
+            }
+            if (msg) msg.textContent = 'Убираем привилегию...';
+            window.fizaiElo.clearPrivilege(uid).then(function () {
+                if (msg) msg.textContent = 'Привилегия убрана.';
+                window.adminRenderEloList();
+            }).catch(function (e) {
+                if (msg) msg.textContent = 'Ошибка: ' + ((e && e.message) ? e.message : e);
+            });
         };
 
 
@@ -3301,16 +3368,18 @@ Interface language: English. The whole app is now in English, so always answer t
                     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
                 } catch (e) { return 'some'; }
             }
-            function b64urlDecode(str) {
+            function b64urlDecodeRaw(str) {
                 try {
                     let s = String(str).replace(/-/g, '+').replace(/_/g, '/');
                     while (s.length % 4) s += '=';
                     const bin = atob(s);
                     const bytes = new Uint8Array(bin.length);
                     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-                    const text = new TextDecoder().decode(bytes);
-                    return text || 'Игрок';
-                } catch (e) { return 'Игрок'; }
+                    return new TextDecoder().decode(bytes);
+                } catch (e) { return ''; }
+            }
+            function b64urlDecode(str) {
+                return b64urlDecodeRaw(str) || 'Игрок';
             }
             function eloPublicName(user) {
                 const n = user && user.displayName ? String(user.displayName) : '';
@@ -3335,11 +3404,27 @@ Interface language: English. The whole app is now in English, so always answer t
                 const i1 = String(key).indexOf('~');
                 if (i1 === -1) return null;
                 const type = key.slice(0, i1);
-                if (type !== 'lb' && type !== 'lbt') return null;
+                if (type !== 'lb' && type !== 'lbt' && type !== 'pr' && type !== 'pd') return null;
                 const rest = key.slice(i1 + 1);
                 const i2 = rest.indexOf('~');
                 if (i2 <= 0 || i2 >= rest.length - 1) return null;
                 return { type: type, uid: rest.slice(0, i2), nameB64: rest.slice(i2 + 1) };
+            }
+            function readPrivilegeFromData(data, uid) {
+                let title = '', desc = '', titleAt = -1, descAt = -1;
+                Object.keys(data || {}).forEach(function (key) {
+                    const m = parseEloKey(key);
+                    if (!m || m.uid !== uid) return;
+                    const at = Number(data[key]) || 0;
+                    if (m.type === 'pr' && at >= titleAt) {
+                        title = b64urlDecodeRaw(m.nameB64).slice(0, 60);
+                        titleAt = at;
+                    } else if (m.type === 'pd' && at >= descAt) {
+                        desc = b64urlDecodeRaw(m.nameB64).slice(0, 200);
+                        descAt = at;
+                    }
+                });
+                return title ? { title: title, desc: desc } : null;
             }
             function eloNodeKey(type, uid, nameB64) { return type + '~' + uid + '~' + nameB64; }
             function eloRef(type, uid, nameB64) { return db.ref('stats/online/' + eloNodeKey(type, uid, nameB64)); }
@@ -3373,7 +3458,11 @@ Interface language: English. The whole app is now in English, so always answer t
                         grouped[m.uid] = candidate;
                     }
                 });
-                eloPlayers = Object.keys(grouped).map(function (uid) { return grouped[uid]; });
+                eloPlayers = Object.keys(grouped).map(function (uid) {
+                    const p = grouped[uid];
+                    p.privilege = readPrivilegeFromData(data, uid);
+                    return p;
+                });
                 sortEloPlayers();
                 eloLoaded = true;
             }
@@ -3445,7 +3534,7 @@ Interface language: English. The whole app is now in English, so always answer t
                             const removals = [];
                             Object.keys(data).forEach(function (key) {
                                 const m = parseEloKey(key);
-                                if (m && m.uid === uid && m.nameB64 !== nameB64) {
+                                if (m && (m.type === 'lb' || m.type === 'lbt') && m.uid === uid && m.nameB64 !== nameB64) {
                                     removals.push(db.ref('stats/online/' + key).remove().catch(function () {}));
                                 }
                             });
@@ -3455,7 +3544,8 @@ Interface language: English. The whole app is now in English, so always answer t
                                     elo: best ? best.elo : 0,
                                     quizzes: best ? best.quizzes : 0,
                                     best: best ? best.best : 0,
-                                    updatedAt: updatedAt
+                                    updatedAt: updatedAt,
+                                    privilege: readPrivilegeFromData(data, uid)
                                 };
                                 mergeEloPlayer(player);
                                 notifyElo();
@@ -3487,7 +3577,8 @@ Interface language: English. The whole app is now in English, so always answer t
                         const player = {
                             uid: uid, name: name, nameB64: nameB64,
                             elo: stats.elo, quizzes: stats.quizzes, best: stats.best,
-                            updatedAt: updatedAt
+                            updatedAt: updatedAt,
+                            privilege: (eloPlayers.find(function (x) { return x.uid === uid; }) || {}).privilege || null
                         };
                         mergeEloPlayer(player);
                         notifyElo();
@@ -3515,11 +3606,62 @@ Interface language: English. The whole app is now in English, so always answer t
                         const player = {
                             uid: uid, name: me.name, nameB64: nameB64,
                             elo: stats.elo, quizzes: stats.quizzes, best: stats.best,
-                            updatedAt: updatedAt
+                            updatedAt: updatedAt,
+                            privilege: me.privilege || null
                         };
                         mergeEloPlayer(player);
                         notifyElo();
                         return player;
+                    });
+                },
+                setPrivilege: function (uid, title, desc) {
+                    uid = String(uid || '');
+                    title = String(title || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+                    desc = String(desc || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+                    if (!uid) return Promise.reject(new Error('Игрок не найден'));
+                    if (!title) return Promise.reject(new Error('Введите название привилегии'));
+                    const player = eloPlayers.find(function (p) { return p.uid === uid; });
+                    if (!player) return Promise.reject(new Error('Игрок не найден — обновите список'));
+                    return db.ref('stats/online').once('value').then(function (snap) {
+                        const data = snap.val() || {};
+                        const removals = [];
+                        Object.keys(data).forEach(function (key) {
+                            const m = parseEloKey(key);
+                            if (m && m.uid === uid && (m.type === 'pr' || m.type === 'pd')) {
+                                removals.push(db.ref('stats/online/' + key).remove().catch(function () {}));
+                            }
+                        });
+                        return Promise.all(removals).then(function () {
+                            const at = Date.now() / 1000;
+                            const writes = [eloRef('pr', uid, b64urlEncode(title)).set(at)];
+                            if (desc) writes.push(eloRef('pd', uid, b64urlEncode(desc)).set(at));
+                            return Promise.all(writes);
+                        });
+                    }).then(function () {
+                        const i = eloPlayers.findIndex(function (p) { return p.uid === uid; });
+                        if (i !== -1) eloPlayers[i].privilege = { title: title, desc: desc };
+                        notifyElo();
+                        return { uid: uid, title: title, desc: desc };
+                    });
+                },
+                clearPrivilege: function (uid) {
+                    uid = String(uid || '');
+                    if (!uid) return Promise.reject(new Error('Игрок не найден'));
+                    return db.ref('stats/online').once('value').then(function (snap) {
+                        const data = snap.val() || {};
+                        const removals = [];
+                        Object.keys(data).forEach(function (key) {
+                            const m = parseEloKey(key);
+                            if (m && m.uid === uid && (m.type === 'pr' || m.type === 'pd')) {
+                                removals.push(db.ref('stats/online/' + key).remove().catch(function () {}));
+                            }
+                        });
+                        return Promise.all(removals);
+                    }).then(function () {
+                        const i = eloPlayers.findIndex(function (p) { return p.uid === uid; });
+                        if (i !== -1) eloPlayers[i].privilege = null;
+                        notifyElo();
+                        return { uid: uid };
                     });
                 },
                 refresh: function () {
@@ -4603,6 +4745,10 @@ Interface language: English. The whole app is now in English, so always answer t
                     <div id="player-modal-avatar" class="w-20 h-20 mx-auto rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-3xl font-bold mb-3">И</div>
                     <h3 id="player-modal-name" class="text-xl font-bold text-white break-words">Игрок</h3>
                     <p id="player-modal-sub" class="text-xs text-gray-400 mt-1">Профиль игрока FizAI</p>
+                    <div id="player-modal-priv" class="hidden mt-2">
+                        <span id="player-modal-priv-badge" class="inline-flex items-center gap-1 text-xs font-semibold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 rounded-lg"></span>
+                        <p id="player-modal-priv-desc" class="text-xs text-gray-400 mt-1.5 max-w-xs mx-auto"></p>
+                    </div>
                 </div>
                 <div class="bg-gradient-to-r from-amber-500/15 via-dark-900/40 to-primary/10 border border-amber-500/30 rounded-2xl p-4 mb-4">
                     <div class="flex items-center justify-between gap-3">
