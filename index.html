@@ -127,6 +127,10 @@
                     <i class="fa-solid fa-trophy w-5"></i>
                     <span>Рейтинг</span>
                 </button>
+                <button onclick="switchTab('reviews')" id="nav-reviews" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-gray-400 hover:bg-dark-700 hover:text-gray-200">
+                    <i class="fa-solid fa-star w-5"></i>
+                    <span>Отзывы</span>
+                </button>
                 <button onclick="openAdminPanel()" id="nav-admin" class="nav-btn hidden w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-amber-400 hover:bg-amber-500/10 hover:text-amber-300">
                     <i class="fa-solid fa-shield-halved w-5"></i>
                     <span>Админ-панель</span>
@@ -342,18 +346,21 @@
                         <p class="text-gray-400 text-sm mt-2">Выбери класс (7–11) и проверь себя: вопросы с четырьмя вариантами ответа, каждый раз всё заново.</p>
                     </div>
                 </div>
-                <!-- Отзывы -->
-                <div class="bg-dark-800 border border-dark-600 rounded-2xl p-5 md:p-6">
-                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-                        <div>
-                            <h3 class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-star text-amber-400"></i>Отзывы пользователей</h3>
-                            <p class="text-xs text-gray-500 mt-1">Что говорят те, кто уже пользуется FizAI</p>
+                <!-- Отзывы (превью) -->
+                <div class="bg-dark-800 border border-dark-600 rounded-2xl p-5 md:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:border-amber-500/40 transition-all" onclick="switchTab('reviews')">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0">
+                            <i class="fa-solid fa-star"></i>
                         </div>
-                        <button onclick="openReviewModal()" class="text-xs bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 px-3 py-1.5 rounded-lg border border-amber-500/30 transition-all">
-                            <i class="fa-solid fa-pen mr-1"></i>Оставить отзыв
-                        </button>
+                        <div>
+                            <h3 class="text-lg font-bold text-white">Отзывы пользователей</h3>
+                            <p class="text-gray-400 text-sm mt-1">Что говорят те, кто уже пользуется FizAI. Нажмите, чтобы прочитать и оставить свой.</p>
+                        </div>
                     </div>
-                    <div id="reviews-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                    <div class="text-amber-400 text-sm font-medium flex items-center gap-2 shrink-0">
+                        <span>Открыть</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </div>
                 </div>
             </section>
 
@@ -596,6 +603,22 @@
                 </div>
             </section>
 
+            <!-- REVIEWS -->
+            <section id="view-reviews" class="tab-content hidden max-w-6xl mx-auto space-y-6">
+                <div class="bg-dark-800 border border-dark-600 rounded-2xl p-5 md:p-6">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-star text-amber-400"></i>Отзывы пользователей</h2>
+                            <p class="text-xs text-gray-500 mt-1">Что говорят те, кто уже пользуется FizAI</p>
+                        </div>
+                        <button onclick="openReviewModal()" class="text-sm bg-amber-500 hover:bg-amber-400 text-dark-900 px-4 py-2 rounded-xl font-medium transition-all">
+                            <i class="fa-solid fa-pen mr-1"></i>Оставить отзыв
+                        </button>
+                    </div>
+                    <div id="reviews-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                </div>
+            </section>
+
             <!-- ADMIN PANEL -->
             <section id="view-admin" class="tab-content hidden max-w-4xl mx-auto space-y-6">
                 <div class="flex items-center justify-between gap-4">
@@ -732,6 +755,7 @@
             calculators: ['Интерактивные калькуляторы', 'Interactive Calculators', 'Интерактивті калькуляторлар'],
             quizzes: ['Квизы по физике', 'Physics Quizzes', 'Физика квиздері'],
             rating: ['Рейтинг игроков', 'Player Leaderboard', 'Ойыншылар рейтингі'],
+            reviews: ['Отзывы пользователей', 'User Reviews', 'Пайдаланушы пікірлері'],
             admin: ['Админ-панель', 'Admin Panel', 'Әкімші панелі']
         };
 
@@ -1162,6 +1186,9 @@
             if (tabId === 'rating') {
                 if (typeof window.renderLeaderboard === 'function') window.renderLeaderboard();
                 if (typeof window.renderQuizStats === 'function') window.renderQuizStats();
+            }
+            if (tabId === 'reviews') {
+                if (typeof window.renderReviews === 'function') window.renderReviews();
             }
             if (tabId === 'ai') {
                 warmUpAI();
@@ -5513,6 +5540,7 @@ Interface language: English. The whole app is now in English, so always answer t
             window.closeReviewModal = closeReviewModal;
             window.setReviewRating = setReviewRating;
             window.submitReview = submitReview;
+            window.renderReviews = renderReviews;
 
             renderReviews();
         })();
