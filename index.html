@@ -4145,43 +4145,6 @@ Interface language: English. The whole app is now in English, so always answer t
                 }
             }
 
-            function setAvatar(el, user) {
-                if (!el) return;
-                const name = displayName(user) || '?';
-                el.style.backgroundImage = '';
-                el.style.backgroundSize = '';
-                el.style.backgroundPosition = '';
-                el.style.background = '';
-                const custom = user ? fizaiCustomAvatar() : '';
-                if (custom) {
-                    el.textContent = '';
-                    el.style.backgroundImage = 'url("' + custom.replace(/"/g, '%22') + '")';
-                    el.style.backgroundSize = 'cover';
-                    el.style.backgroundPosition = 'center';
-                    return;
-                }
-                const presetId = user ? fizaiMyAvatarId() : '';
-                const preset = fizaiAvatarPreset(presetId);
-                if (preset && preset.url) {
-                    el.textContent = '';
-                    el.style.backgroundImage = 'url("' + String(preset.url).replace(/"/g, '%22') + '")';
-                    el.style.backgroundSize = 'cover';
-                    el.style.backgroundPosition = 'center';
-                    return;
-                }
-                if (preset) {
-                    el.textContent = preset.emoji;
-                    el.style.background = preset.bg;
-                    return;
-                }
-                el.textContent = name.charAt(0).toUpperCase();
-                if (user && user.photoURL) {
-                    el.textContent = '';
-                    el.style.backgroundImage = 'url("' + String(user.photoURL).replace(/"/g, '%22') + '")';
-                    el.style.backgroundSize = 'cover';
-                    el.style.backgroundPosition = 'center';
-                }
-            }
 
             function fizaiSyncAvatarFromElo() {
                 const me = (window.fizaiElo && typeof window.fizaiElo.getMe === 'function') ? window.fizaiElo.getMe() : null;
@@ -4208,29 +4171,11 @@ Interface language: English. The whole app is now in English, so always answer t
                 setAvatar($('sidebar-avatar'), currentUser);
                 const profileAvatar = $('profile-avatar');
                 if (profileAvatar) {
-                    const custom = fizaiCustomAvatar();
-                    if (custom) {
-                        profileAvatar.textContent = '';
-                        profileAvatar.style.backgroundImage = 'url("' + custom.replace(/"/g, '%22') + '")';
-                        profileAvatar.style.backgroundSize = 'cover';
-                        profileAvatar.style.backgroundPosition = 'center';
-                        profileAvatar.style.background = '';
-                    } else {
-                        fizaiPaintAvatar(profileAvatar, fizaiMyAvatarId(), displayName(currentUser));
-                    }
+                    fizaiPaintAvatar(profileAvatar, fizaiMyAvatarId(), displayName(currentUser));
                 }
                 const settingsAvatar = $('settings-avatar');
                 if (settingsAvatar) {
-                    const custom = fizaiCustomAvatar();
-                    if (custom) {
-                        settingsAvatar.textContent = '';
-                        settingsAvatar.style.backgroundImage = 'url("' + custom.replace(/"/g, '%22') + '")';
-                        settingsAvatar.style.backgroundSize = 'cover';
-                        settingsAvatar.style.backgroundPosition = 'center';
-                        settingsAvatar.style.background = '';
-                    } else {
-                        fizaiPaintAvatar(settingsAvatar, fizaiMyAvatarId(), displayName(currentUser));
-                    }
+                    fizaiPaintAvatar(settingsAvatar, fizaiMyAvatarId(), displayName(currentUser));
                 }
             }
 
@@ -5035,16 +4980,7 @@ Interface language: English. The whole app is now in English, so always answer t
                 if (msg) { msg.classList.add('hidden'); msg.textContent = ''; }
                 const avatarEl = $('settings-avatar');
                 if (avatarEl) {
-                    const custom = fizaiCustomAvatar();
-                    if (custom) {
-                        avatarEl.textContent = '';
-                        avatarEl.style.backgroundImage = 'url("' + custom.replace(/"/g, '%22') + '")';
-                        avatarEl.style.backgroundSize = 'cover';
-                        avatarEl.style.backgroundPosition = 'center';
-                        avatarEl.style.background = '';
-                    } else {
-                        fizaiPaintAvatar(avatarEl, fizaiMyAvatarId(), displayName(currentUser));
-                    }
+                    fizaiPaintAvatar(avatarEl, fizaiMyAvatarId(), displayName(currentUser));
                 }
                 const modal = $('settings-modal');
                 if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
@@ -5144,16 +5080,7 @@ Interface language: English. The whole app is now in English, so always answer t
                 const emailEl = $('profile-email');
                 const name = currentUser.displayName || currentUser.email || 'Пользователь';
                 if (avatar) {
-                    const custom = fizaiCustomAvatar();
-                    if (custom) {
-                        avatar.textContent = '';
-                        avatar.style.backgroundImage = 'url("' + custom.replace(/"/g, '%22') + '")';
-                        avatar.style.backgroundSize = 'cover';
-                        avatar.style.backgroundPosition = 'center';
-                        avatar.style.background = '';
-                    } else {
-                        fizaiPaintAvatar(avatar, fizaiMyAvatarId(), name);
-                    }
+                    fizaiPaintAvatar(avatar, fizaiMyAvatarId(), name);
                 }
                 if (nameEl) nameEl.textContent = name;
                 if (emailEl) emailEl.textContent = currentUser.email || '';
@@ -5433,12 +5360,7 @@ Interface language: English. The whole app is now in English, so always answer t
 
             // ===== Отзывы =====
             const REVIEWS_STORAGE_KEY = 'fizai_reviews_v1';
-            const SAMPLE_REVIEWS = [
-                { name: 'Айдана', rating: 5, text: 'Очень удобный сайт! Формулы разложены по темам, калькуляторы экономят время. ИИ-репетитор объясняет понятно, не просто даёт ответы.', date: '2025-11-12' },
-                { name: 'Тимур', rating: 5, text: 'Квизы помогают проверить себя перед контрольной. Рейтинг мотивирует — хочется подняться выше. Спасибо за проект!', date: '2025-11-28' },
-                { name: 'Диана', rating: 4, text: 'Хорошая база формул, но хотелось бы больше задач с решениями. В остальном — отлично, пользуюсь каждый день.', date: '2025-12-05' },
-                { name: 'Ерсултан', rating: 5, text: 'ИИ помог разобраться с термодинамикой за один вечер. Интерфейс приятный, всё на русском. Рекомендую одноклассникам.', date: '2026-01-14' }
-            ];
+            const SAMPLE_REVIEWS = [];
 
             function loadReviews() {
                 try {
