@@ -3737,7 +3737,10 @@ Interface language: English. The whole app is now in English, so always answer t
                     try {
                         let s = m.nameB64.replace(/-/g, '+').replace(/_/g, '/');
                         while (s.length % 4) s += '=';
-                        payload = atob(s);
+                        const bin = atob(s);
+                        const bytes = new Uint8Array(bin.length);
+                        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                        payload = new TextDecoder().decode(bytes);
                     } catch (e) { return; }
                     const parts = String(payload).split('\n');
                     if (parts.length < 4) return;
