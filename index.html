@@ -627,7 +627,17 @@
                             <i class="fa-solid fa-rotate mr-1"></i>Обновить
                         </button>
                     </div>
+                    <div id="admin-elo-summary" class="grid grid-cols-2 md:grid-cols-4 gap-2"></div>
                     <input id="admin-elo-search" type="text" placeholder="Поиск по имени или ID" oninput="adminRenderEloList()" class="w-full bg-dark-900 border border-dark-600 rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-400">
+                    <div class="flex flex-wrap items-center gap-2 bg-dark-900/40 border border-dark-600 rounded-xl p-2.5">
+                        <input id="admin-elo-bulk" type="number" placeholder="Начислить всем (+/-)" class="flex-1 min-w-[140px] bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-400">
+                        <button onclick="adminBulkElo()" class="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-dark-900 text-xs font-medium transition-all shrink-0">
+                            <i class="fa-solid fa-users mr-1"></i>Всем игрокам
+                        </button>
+                        <button onclick="adminExportCsv()" class="px-3 py-2 rounded-lg bg-dark-700 hover:bg-dark-600 text-gray-300 text-xs font-medium border border-dark-600 transition-all shrink-0">
+                            <i class="fa-solid fa-file-csv mr-1"></i>Экспорт CSV
+                        </button>
+                    </div>
                     <div id="admin-elo-list" class="space-y-2 text-sm"></div>
                     <p id="admin-elo-msg" class="text-sm text-gray-400"></p>
                 </div>
@@ -2231,6 +2241,40 @@
             renderQuizStats();
         };
 
+        // ===== Аватарки игроков =====
+        const FIZAI_AVATARS = [
+            { id: 'fox', emoji: '🦊', bg: 'linear-gradient(135deg,#f97316,#dc2626)' },
+            { id: 'panda', emoji: '🐼', bg: 'linear-gradient(135deg,#64748b,#334155)' },
+            { id: 'rocket', emoji: '🚀', bg: 'linear-gradient(135deg,#6366f1,#a855f7)' },
+            { id: 'bolt', emoji: '⚡', bg: 'linear-gradient(135deg,#facc15,#f59e0b)' },
+            { id: 'brain', emoji: '🧠', bg: 'linear-gradient(135deg,#ec4899,#8b5cf6)' },
+            { id: 'owl', emoji: '🦉', bg: 'linear-gradient(135deg,#0ea5e9,#6366f1)' },
+            { id: 'dragon', emoji: '🐉', bg: 'linear-gradient(135deg,#10b981,#0ea5e9)' },
+            { id: 'star', emoji: '🌟', bg: 'linear-gradient(135deg,#f59e0b,#eab308)' },
+            { id: 'atom', emoji: '⚛️', bg: 'linear-gradient(135deg,#14b8a6,#06b6d4)' },
+            { id: 'flask', emoji: '🧪', bg: 'linear-gradient(135deg,#a3e635,#22c55e)' },
+            { id: 'cat', emoji: '🐱', bg: 'linear-gradient(135deg,#fb7185,#f43f5e)' },
+            { id: 'alien', emoji: '👾', bg: 'linear-gradient(135deg,#8b5cf6,#22d3ee)' }
+        ];
+        function fizaiAvatarPreset(id) {
+            const key = String(id || '');
+            if (!key) return null;
+            return FIZAI_AVATARS.find(function (a) { return a.id === key; }) || null;
+        }
+        window.fizaiAvatarPreset = fizaiAvatarPreset;
+        window.fizaiPaintAvatar = function (el, avatarId, name) {
+            if (!el) return;
+            el.style.backgroundImage = '';
+            const av = fizaiAvatarPreset(avatarId);
+            if (av) {
+                el.textContent = av.emoji;
+                el.style.background = av.bg;
+            } else {
+                el.textContent = String(name || 'И').trim().charAt(0).toUpperCase() || 'И';
+                el.style.background = '';
+            }
+        };
+
         // ===== ELO: рейтинг игроков, профили и админ-панель =====
         const ELO_LEVELS = [
             { min: 0, ru: 'Новичок', en: 'Rookie' },
@@ -2329,6 +2373,7 @@
                 else if (rank === 3) medal = '<span class="text-lg">🥉</span>';
                 const initial = String(p.name || 'И').trim().charAt(0).toUpperCase() || 'И';
                 const safeUid = String(p.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
+                const av = fizaiAvatarPreset(p.avatar);
                 const privTitle = p.privilege && p.privilege.title ? String(p.privilege.title) : '';
                 const privBadge = privTitle
                     ? ` <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded-md align-middle">${escapeHtml(privTitle)}</span>`
@@ -2336,7 +2381,7 @@
                 return `
                     <button type="button" onclick="openPlayerProfile('${safeUid}')" title="${pick('Открыть профиль', 'Open profile')}" class="w-full text-left flex items-center gap-3 px-3 py-3 rounded-xl border ${me ? 'border-primary/50 bg-primary/10 hover:border-primary/70' : 'border-dark-600 bg-dark-900/60 hover:border-primary/40'} hover:bg-dark-800 transition-all">
                         <div class="w-8 flex items-center justify-center shrink-0">${medal}</div>
-                        <div class="w-9 h-9 rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-sm font-bold shrink-0">${escapeHtml(initial)}</div>
+                        <div class="w-9 h-9 rounded-full bg-primary/20 text-primary-light flex items-center justify-center ${av ? 'text-lg' : 'text-sm font-bold'} shrink-0" ${av ? `style="background:${av.bg}"` : ''}>${av ? av.emoji : escapeHtml(initial)}</div>
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-medium text-gray-100 truncate">${escapeHtml(p.name)}${me ? ' <span class="text-[10px] text-primary-light">(' + pick('вы', 'you') + ')</span>' : ''}${privBadge}</p>
                             <p class="text-[11px] text-gray-500">${p.quizzes} ${pick(pluralQuizzes(p.quizzes), p.quizzes === 1 ? 'quiz' : 'quizzes')} · ${pick('лучший', 'best')} ${p.best}%</p>
@@ -2402,6 +2447,8 @@
                 }
             }
             setText('player-modal-avatar', String(name).trim().charAt(0).toUpperCase() || 'И');
+            const avEl = document.getElementById('player-modal-avatar');
+            if (avEl) fizaiPaintAvatar(avEl, p && p.avatar, name);
             setText('player-modal-elo', String(elo));
             setText('player-modal-rank', rank ? '#' + rank : '—');
             setText('player-modal-quizzes', String(quizzes));
@@ -2437,6 +2484,25 @@
             const searchEl = document.getElementById('admin-elo-search');
             const q = (searchEl ? searchEl.value : '').trim().toLowerCase();
             const players = (window.fizaiElo && window.fizaiElo.getPlayers) ? window.fizaiElo.getPlayers() : [];
+            const summaryEl = document.getElementById('admin-elo-summary');
+            if (summaryEl) {
+                const totalElo = players.reduce(function (s, p) { return s + (Number(p.elo) || 0); }, 0);
+                const avgElo = players.length ? Math.round(totalElo / players.length) : 0;
+                const totalQuizzes = players.reduce(function (s, p) { return s + (Number(p.quizzes) || 0); }, 0);
+                const top = players.length ? players[0] : null;
+                const cards = [
+                    { label: 'Игроков', value: players.length, icon: 'fa-users', color: 'text-primary-light' },
+                    { label: 'Средний ELO', value: avgElo, icon: 'fa-bolt', color: 'text-amber-400' },
+                    { label: 'Квизов', value: totalQuizzes, icon: 'fa-circle-check', color: 'text-emerald-400' },
+                    { label: 'Лидер', value: top ? top.name : '—', icon: 'fa-crown', color: 'text-amber-300', small: true }
+                ];
+                summaryEl.innerHTML = cards.map(function (c) {
+                    return `<div class="bg-dark-900/60 border border-dark-600 rounded-xl px-3 py-2.5">
+                        <p class="text-[10px] text-gray-500 uppercase tracking-wider flex items-center gap-1"><i class="fa-solid ${c.icon}"></i>${escapeHtml(c.label)}</p>
+                        <p class="${c.small ? 'text-xs' : 'text-xl'} font-bold ${c.color} truncate" title="${escapeHtml(String(c.value))}">${escapeHtml(String(c.value))}</p>
+                    </div>`;
+                }).join('');
+            }
             const list = players.filter(function (p) {
                 if (!q) return true;
                 return String(p.name || '').toLowerCase().indexOf(q) !== -1 || String(p.uid || '').toLowerCase().indexOf(q) !== -1;
@@ -2449,12 +2515,17 @@
                 const uid = String(p.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
                 const privTitle = p.privilege && p.privilege.title ? String(p.privilege.title) : '';
                 const privDesc = p.privilege && p.privilege.desc ? String(p.privilege.desc) : '';
+                const av = fizaiAvatarPreset(p.avatar);
+                const initial = String(p.name || 'И').trim().charAt(0).toUpperCase() || 'И';
                 return `
                     <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3 space-y-2">
                         <div class="flex flex-wrap items-center justify-between gap-3">
-                            <div class="min-w-0">
-                                <p class="text-gray-200 truncate">${escapeHtml(p.name)} <span class="text-[10px] text-gray-500">ID ${escapeHtml(uid.slice(0, 8))}</span>${privTitle ? ` <span class="text-[10px] font-semibold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded-md">${escapeHtml(privTitle)}</span>` : ''}</p>
-                                <p class="text-[11px] text-gray-500">ELO: <span class="text-amber-400 font-semibold">${p.elo}</span> · квизов: ${p.quizzes} · лучший: ${p.best}%</p>
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <div class="w-9 h-9 rounded-full bg-primary/20 text-primary-light flex items-center justify-center ${av ? 'text-lg' : 'text-sm font-bold'} shrink-0" ${av ? `style="background:${av.bg}"` : ''}>${av ? av.emoji : escapeHtml(initial)}</div>
+                                <div class="min-w-0">
+                                    <p class="text-gray-200 truncate">${escapeHtml(p.name)} <span class="text-[10px] text-gray-500">ID ${escapeHtml(uid.slice(0, 8))}</span>${privTitle ? ` <span class="text-[10px] font-semibold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded-md">${escapeHtml(privTitle)}</span>` : ''}</p>
+                                    <p class="text-[11px] text-gray-500">ELO: <span class="text-amber-400 font-semibold">${p.elo}</span> · квизов: ${p.quizzes} · лучший: ${p.best}%</p>
+                                </div>
                             </div>
                             <div class="flex gap-1.5 shrink-0">
                                 <button onclick="adminAdjustElo('${uid}', 15)" class="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-xs transition-all">+15</button>
@@ -2466,6 +2537,13 @@
                         <div class="flex gap-2">
                             <input id="admin-elo-amt-${uid}" type="number" placeholder="Своё значение (+/-)" class="flex-1 bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-400">
                             <button onclick="adminApplyEloDelta('${uid}')" class="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-dark-900 text-xs font-medium transition-all">Начислить</button>
+                        </div>
+                        <div class="flex gap-2">
+                            <input id="admin-elo-exact-${uid}" type="number" min="0" placeholder="Точное ELO (например, 500)" class="flex-1 bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-400">
+                            <button onclick="adminSetExactElo('${uid}')" class="px-3 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-medium transition-all shrink-0">Установить</button>
+                            <button onclick="adminRemovePlayer('${uid}')" title="Удалить из рейтинга" class="px-3 py-2 rounded-lg bg-dark-700 hover:bg-red-500/20 text-gray-400 hover:text-red-300 border border-dark-600 hover:border-red-500/30 text-xs transition-all shrink-0">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
                         </div>
                         <div class="border-t border-dark-600 pt-2.5 mt-1 space-y-2">
                             <p class="text-[11px] text-gray-400">Привилегия: ${privTitle ? `<span class="text-amber-300 font-semibold">${escapeHtml(privTitle)}</span>` : '<span class="text-gray-500">не выдана</span>'}${privDesc ? `<span class="text-gray-500"> — ${escapeHtml(privDesc)}</span>` : ''}</p>
@@ -2507,6 +2585,127 @@
             }
             if (input) input.value = '';
             window.adminAdjustElo(uid, delta);
+        };
+
+        window.adminSetExactElo = function (uid) {
+            const input = document.getElementById('admin-elo-exact-' + uid);
+            const value = parseInt(input ? input.value : '', 10);
+            const msg = document.getElementById('admin-elo-msg');
+            if (!isFinite(value) || value < 0) {
+                if (msg) msg.textContent = 'Введите точное значение ELO (0 или больше).';
+                return;
+            }
+            if (input) input.value = '';
+            if (!window.fizaiElo || typeof window.fizaiElo.setElo !== 'function') {
+                if (msg) msg.textContent = 'ELO-модуль не загрузился.';
+                return;
+            }
+            if (msg) msg.textContent = 'Устанавливаем ELO...';
+            window.fizaiElo.setElo(uid, value).then(function (p) {
+                if (msg) msg.textContent = 'Готово: ' + p.name + ' — ' + p.elo + ' ELO';
+                window.adminRenderEloList();
+            }).catch(function (e) {
+                if (msg) msg.textContent = 'Ошибка: ' + ((e && e.message) ? e.message : e);
+            });
+        };
+
+        let adminRemovePending = {};
+        window.adminRemovePlayer = function (uid) {
+            const msg = document.getElementById('admin-elo-msg');
+            if (!window.fizaiElo || typeof window.fizaiElo.removePlayer !== 'function') {
+                if (msg) msg.textContent = 'ELO-модуль не загрузился.';
+                return;
+            }
+            const now = Date.now();
+            if (!adminRemovePending[uid] || now - adminRemovePending[uid] > 4000) {
+                adminRemovePending[uid] = now;
+                if (msg) msg.textContent = 'Нажмите корзину ещё раз в течение 4 секунд, чтобы удалить игрока из рейтинга.';
+                return;
+            }
+            delete adminRemovePending[uid];
+            if (msg) msg.textContent = 'Удаляем игрока из рейтинга...';
+            window.fizaiElo.removePlayer(uid).then(function () {
+                if (msg) msg.textContent = 'Игрок удалён из рейтинга. Он появится снова после входа или квиза.';
+                window.adminRenderEloList();
+            }).catch(function (e) {
+                if (msg) msg.textContent = 'Ошибка: ' + ((e && e.message) ? e.message : e);
+            });
+        };
+
+        let adminBulkPending = 0;
+        window.adminBulkElo = function () {
+            const input = document.getElementById('admin-elo-bulk');
+            const delta = parseInt(input ? input.value : '', 10);
+            const msg = document.getElementById('admin-elo-msg');
+            if (!delta || !isFinite(delta)) {
+                if (msg) msg.textContent = 'Введите число (например, 10 или -10).';
+                return;
+            }
+            if (!window.fizaiElo || typeof window.fizaiElo.adjust !== 'function' || typeof window.fizaiElo.getPlayers !== 'function') {
+                if (msg) msg.textContent = 'ELO-модуль не загрузился.';
+                return;
+            }
+            const players = window.fizaiElo.getPlayers();
+            if (!players.length) {
+                if (msg) msg.textContent = 'Пока нет игроков в рейтинге.';
+                return;
+            }
+            const now = Date.now();
+            if (now - adminBulkPending > 4000) {
+                adminBulkPending = now;
+                if (msg) msg.textContent = 'Нажмите «Всем игрокам» ещё раз в течение 4 секунд, чтобы изменить ELO у ' + players.length + ' игроков на ' + (delta > 0 ? '+' : '') + delta + '.';
+                return;
+            }
+            adminBulkPending = 0;
+            if (input) input.value = '';
+            if (msg) msg.textContent = 'Обновляем ELO у всех игроков...';
+            const uids = players.map(function (p) { return p.uid; });
+            Promise.all(uids.map(function (uid) {
+                return window.fizaiElo.adjust(uid, delta).catch(function () { return null; });
+            })).then(function (results) {
+                const ok = results.filter(function (r) { return r; }).length;
+                if (msg) msg.textContent = 'Готово: ELO изменён у ' + ok + ' из ' + uids.length + ' игроков.';
+                window.adminRenderEloList();
+            });
+        };
+
+        window.adminExportCsv = function () {
+            const msg = document.getElementById('admin-elo-msg');
+            const players = (window.fizaiElo && window.fizaiElo.getPlayers) ? window.fizaiElo.getPlayers() : [];
+            if (!players.length) {
+                if (msg) msg.textContent = 'Пока нет игроков для экспорта.';
+                return;
+            }
+            const esc = function (v) {
+                const s = String(v == null ? '' : v).replace(/"/g, '""');
+                return '"' + s + '"';
+            };
+            const lines = ['Имя;ELO;Квизов;Лучший %;Привилегия;ID'];
+            players.forEach(function (p) {
+                lines.push([
+                    esc(p.name || ''),
+                    esc(p.elo || 0),
+                    esc(p.quizzes || 0),
+                    esc(p.best || 0),
+                    esc(p.privilege && p.privilege.title ? p.privilege.title : ''),
+                    esc(p.uid || '')
+                ].join(';'));
+            });
+            try {
+                const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const d = new Date();
+                const stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                a.href = url;
+                a.download = 'fizai-rating-' + stamp + '.csv';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 0);
+                if (msg) msg.textContent = 'CSV-файл с рейтингом скачан.';
+            } catch (e) {
+                if (msg) msg.textContent = 'Не удалось создать CSV: ' + ((e && e.message) ? e.message : e);
+            }
         };
 
         window.adminSavePrivilege = function (uid) {
@@ -3404,11 +3603,24 @@ Interface language: English. The whole app is now in English, so always answer t
                 const i1 = String(key).indexOf('~');
                 if (i1 === -1) return null;
                 const type = key.slice(0, i1);
-                if (type !== 'lb' && type !== 'lbt' && type !== 'pr' && type !== 'pd') return null;
+                if (type !== 'lb' && type !== 'lbt' && type !== 'pr' && type !== 'pd' && type !== 'av') return null;
                 const rest = key.slice(i1 + 1);
                 const i2 = rest.indexOf('~');
                 if (i2 <= 0 || i2 >= rest.length - 1) return null;
                 return { type: type, uid: rest.slice(0, i2), nameB64: rest.slice(i2 + 1) };
+            }
+            function readAvatarFromData(data, uid) {
+                let id = '', at = -1;
+                Object.keys(data || {}).forEach(function (key) {
+                    const m = parseEloKey(key);
+                    if (!m || m.uid !== uid || m.type !== 'av') return;
+                    const value = Number(data[key]) || 0;
+                    if (value >= at) {
+                        id = b64urlDecodeRaw(m.nameB64);
+                        at = value;
+                    }
+                });
+                return fizaiAvatarPreset(id) ? id : '';
             }
             function readPrivilegeFromData(data, uid) {
                 let title = '', desc = '', titleAt = -1, descAt = -1;
@@ -3461,6 +3673,7 @@ Interface language: English. The whole app is now in English, so always answer t
                 eloPlayers = Object.keys(grouped).map(function (uid) {
                     const p = grouped[uid];
                     p.privilege = readPrivilegeFromData(data, uid);
+                    p.avatar = readAvatarFromData(data, uid);
                     return p;
                 });
                 sortEloPlayers();
@@ -3476,6 +3689,8 @@ Interface language: English. The whole app is now in English, so always answer t
             function notifyElo() {
                 if (typeof window.renderLeaderboard === 'function') window.renderLeaderboard();
                 if (typeof window.renderPlayerProfile === 'function') window.renderPlayerProfile();
+                if (typeof window.fizaiSyncAvatarFromElo === 'function') window.fizaiSyncAvatarFromElo();
+                if (typeof window.fizaiRefreshProfileModal === 'function') window.fizaiRefreshProfileModal();
             }
             function attachEloListener() {
                 if (eloListenerAttached) return;
@@ -3545,7 +3760,8 @@ Interface language: English. The whole app is now in English, so always answer t
                                     quizzes: best ? best.quizzes : 0,
                                     best: best ? best.best : 0,
                                     updatedAt: updatedAt,
-                                    privilege: readPrivilegeFromData(data, uid)
+                                    privilege: readPrivilegeFromData(data, uid),
+                                    avatar: readAvatarFromData(data, uid)
                                 };
                                 mergeEloPlayer(player);
                                 notifyElo();
@@ -3578,7 +3794,8 @@ Interface language: English. The whole app is now in English, so always answer t
                             uid: uid, name: name, nameB64: nameB64,
                             elo: stats.elo, quizzes: stats.quizzes, best: stats.best,
                             updatedAt: updatedAt,
-                            privilege: (eloPlayers.find(function (x) { return x.uid === uid; }) || {}).privilege || null
+                            privilege: (eloPlayers.find(function (x) { return x.uid === uid; }) || {}).privilege || null,
+                            avatar: (eloPlayers.find(function (x) { return x.uid === uid; }) || {}).avatar || ''
                         };
                         mergeEloPlayer(player);
                         notifyElo();
@@ -3607,11 +3824,114 @@ Interface language: English. The whole app is now in English, so always answer t
                             uid: uid, name: me.name, nameB64: nameB64,
                             elo: stats.elo, quizzes: stats.quizzes, best: stats.best,
                             updatedAt: updatedAt,
-                            privilege: me.privilege || null
+                            privilege: me.privilege || null,
+                            avatar: me.avatar || ''
                         };
                         mergeEloPlayer(player);
                         notifyElo();
                         return player;
+                    });
+                },
+                setElo: function (uid, value) {
+                    uid = String(uid || '');
+                    const target = Math.max(0, Math.min(1000000, Math.round(Number(value) || 0)));
+                    if (!uid) return Promise.reject(new Error('Игрок не найден'));
+                    const me = eloPlayers.find(function (p) { return p.uid === uid; });
+                    if (!me) return Promise.reject(new Error('Игрок не найден — обновите список'));
+                    return eloRef('lb', uid, me.nameB64).transaction(function (cur) {
+                        const base = unpackElo(cur);
+                        return packElo(target, base.quizzes, base.best);
+                    }).then(function (res) {
+                        const stats = unpackElo(res.snapshot.val());
+                        const updatedAt = Date.now() / 1000;
+                        writeEloTimestamp(uid, me.nameB64, updatedAt);
+                        const player = {
+                            uid: uid, name: me.name, nameB64: me.nameB64,
+                            elo: stats.elo, quizzes: stats.quizzes, best: stats.best,
+                            updatedAt: updatedAt,
+                            privilege: me.privilege || null,
+                            avatar: me.avatar || ''
+                        };
+                        mergeEloPlayer(player);
+                        notifyElo();
+                        return player;
+                    });
+                },
+                removePlayer: function (uid) {
+                    uid = String(uid || '');
+                    if (!uid) return Promise.reject(new Error('Игрок не найден'));
+                    return db.ref('stats/online').once('value').then(function (snap) {
+                        const data = snap.val() || {};
+                        const removals = [];
+                        Object.keys(data).forEach(function (key) {
+                            const m = parseEloKey(key);
+                            if (m && m.uid === uid) {
+                                removals.push(db.ref('stats/online/' + key).remove().catch(function () {}));
+                            }
+                        });
+                        return Promise.all(removals);
+                    }).then(function () {
+                        eloPlayers = eloPlayers.filter(function (p) { return p.uid !== uid; });
+                        notifyElo();
+                        return { uid: uid };
+                    });
+                },
+                setAvatar: function (uid, avatarId) {
+                    uid = String(uid || '');
+                    const preset = fizaiAvatarPreset(avatarId);
+                    if (!uid) return Promise.reject(new Error('Игрок не найден'));
+                    if (!preset) return Promise.reject(new Error('Неизвестная аватарка'));
+                    return db.ref('stats/online').once('value').then(function (snap) {
+                        const data = snap.val() || {};
+                        const removals = [];
+                        Object.keys(data).forEach(function (key) {
+                            const m = parseEloKey(key);
+                            if (m && m.uid === uid && m.type === 'av') {
+                                removals.push(db.ref('stats/online/' + key).remove().catch(function () {}));
+                            }
+                        });
+                        return Promise.all(removals).then(function () {
+                            return eloRef('av', uid, b64urlEncode(preset.id)).set(Date.now() / 1000);
+                        });
+                    }).then(function () {
+                        const i = eloPlayers.findIndex(function (p) { return p.uid === uid; });
+                        if (i !== -1) eloPlayers[i].avatar = preset.id;
+                        if (currentUser && currentUser.uid === uid) {
+                            try {
+                                localStorage.setItem('fizai_avatar_v1', preset.id);
+                                localStorage.setItem('fizai_avatar_uid', uid);
+                            } catch (e) {}
+                            if (typeof window.fizaiRefreshAvatarUI === 'function') window.fizaiRefreshAvatarUI();
+                        }
+                        notifyElo();
+                        return { uid: uid, avatar: preset.id };
+                    });
+                },
+                clearAvatar: function (uid) {
+                    uid = String(uid || '');
+                    if (!uid) return Promise.reject(new Error('Игрок не найден'));
+                    return db.ref('stats/online').once('value').then(function (snap) {
+                        const data = snap.val() || {};
+                        const removals = [];
+                        Object.keys(data).forEach(function (key) {
+                            const m = parseEloKey(key);
+                            if (m && m.uid === uid && m.type === 'av') {
+                                removals.push(db.ref('stats/online/' + key).remove().catch(function () {}));
+                            }
+                        });
+                        return Promise.all(removals);
+                    }).then(function () {
+                        const i = eloPlayers.findIndex(function (p) { return p.uid === uid; });
+                        if (i !== -1) eloPlayers[i].avatar = '';
+                        if (currentUser && currentUser.uid === uid) {
+                            try {
+                                localStorage.removeItem('fizai_avatar_v1');
+                                localStorage.removeItem('fizai_avatar_uid');
+                            } catch (e) {}
+                            if (typeof window.fizaiRefreshAvatarUI === 'function') window.fizaiRefreshAvatarUI();
+                        }
+                        notifyElo();
+                        return { uid: uid };
                     });
                 },
                 setPrivilege: function (uid, title, desc) {
@@ -3711,13 +4031,37 @@ Interface language: English. The whole app is now in English, so always answer t
                 return tr('Аккаунт', 'Account');
             }
 
+            function fizaiMyAvatarId() {
+                let id = '';
+                let storedUid = '';
+                try {
+                    id = localStorage.getItem('fizai_avatar_v1') || '';
+                    storedUid = localStorage.getItem('fizai_avatar_uid') || '';
+                } catch (e) {}
+                const myUid = currentUser ? currentUser.uid : ((window.fizaiElo && typeof window.fizaiElo.getUid === 'function') ? window.fizaiElo.getUid() : '');
+                if (myUid && storedUid && storedUid !== myUid) id = '';
+                if (!fizaiAvatarPreset(id) && window.fizaiElo && typeof window.fizaiElo.getMe === 'function') {
+                    const me = window.fizaiElo.getMe();
+                    if (me && me.avatar) id = me.avatar;
+                }
+                return fizaiAvatarPreset(id) ? id : '';
+            }
+
             function setAvatar(el, user) {
                 if (!el) return;
                 const name = displayName(user) || '?';
-                el.textContent = name.charAt(0).toUpperCase();
                 el.style.backgroundImage = '';
                 el.style.backgroundSize = '';
                 el.style.backgroundPosition = '';
+                const presetId = user ? fizaiMyAvatarId() : '';
+                const preset = fizaiAvatarPreset(presetId);
+                if (preset) {
+                    el.textContent = preset.emoji;
+                    el.style.background = preset.bg;
+                    return;
+                }
+                el.style.background = '';
+                el.textContent = name.charAt(0).toUpperCase();
                 if (user && user.photoURL) {
                     el.textContent = '';
                     el.style.backgroundImage = 'url("' + String(user.photoURL).replace(/"/g, '%22') + '")';
@@ -3725,6 +4069,38 @@ Interface language: English. The whole app is now in English, so always answer t
                     el.style.backgroundPosition = 'center';
                 }
             }
+
+            function fizaiSyncAvatarFromElo() {
+                const me = (window.fizaiElo && typeof window.fizaiElo.getMe === 'function') ? window.fizaiElo.getMe() : null;
+                if (!me) return;
+                try {
+                if (me.avatar) {
+                    localStorage.setItem('fizai_avatar_v1', me.avatar);
+                    localStorage.setItem('fizai_avatar_uid', String(currentUser.uid));
+                } else {
+                    localStorage.removeItem('fizai_avatar_v1');
+                    localStorage.removeItem('fizai_avatar_uid');
+                }
+                } catch (e) {}
+                fizaiRefreshAvatarUI();
+            }
+
+            function fizaiRefreshAvatarUI() {
+                if (!currentUser) {
+                    setAvatar($('auth-header-avatar'), null);
+                    setAvatar($('sidebar-avatar'), null);
+                    return;
+                }
+                setAvatar($('auth-header-avatar'), currentUser);
+                setAvatar($('sidebar-avatar'), currentUser);
+                const profileAvatar = $('profile-avatar');
+                if (profileAvatar) fizaiPaintAvatar(profileAvatar, fizaiMyAvatarId(), displayName(currentUser));
+                const settingsAvatar = $('settings-avatar');
+                if (settingsAvatar) fizaiPaintAvatar(settingsAvatar, fizaiMyAvatarId(), displayName(currentUser));
+            }
+
+            window.fizaiSyncAvatarFromElo = fizaiSyncAvatarFromElo;
+            window.fizaiRefreshAvatarUI = fizaiRefreshAvatarUI;
 
             function updateUserUI(user) {
                 const name = user ? displayName(user) : '';
@@ -4494,6 +4870,8 @@ Interface language: English. The whole app is now in English, so always answer t
                 if (settingsModal && settingsModal.style.display === 'flex') closeSettingsModal();
                 const profileModal = $('profile-modal');
                 if (profileModal && profileModal.style.display === 'flex') closeProfileModal();
+                const avatarModal = $('avatar-modal');
+                if (avatarModal && avatarModal.style.display === 'flex') closeAvatarPicker();
                 const adminModal = document.getElementById('admin-modal');
                 if (adminModal && adminModal.style.display === 'flex') closeAdminModal();
             });
@@ -4515,6 +4893,8 @@ Interface language: English. The whole app is now in English, so always answer t
                 const curPassEl = $('settings-current-password');
                 if (curPassEl) curPassEl.value = '';
                 if (msg) { msg.classList.add('hidden'); msg.textContent = ''; }
+                const avatarEl = $('settings-avatar');
+                if (avatarEl) fizaiPaintAvatar(avatarEl, fizaiMyAvatarId(), displayName(currentUser));
                 const modal = $('settings-modal');
                 if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
             }
@@ -4566,6 +4946,45 @@ Interface language: English. The whole app is now in English, so always answer t
                     }
                 }
             }
+            function fillProfileElo() {
+                if (!currentUser) return;
+                const me = (window.fizaiElo && typeof window.fizaiElo.getMe === 'function') ? window.fizaiElo.getMe() : null;
+                const players = (window.fizaiElo && typeof window.fizaiElo.getPlayers === 'function') ? window.fizaiElo.getPlayers() : [];
+                const idx = me ? players.findIndex(function (p) { return p.uid === me.uid; }) : -1;
+                const elo = me ? me.elo : 0;
+                const lvl = eloLevelInfo(elo);
+                const levelIcon = elo >= 1000 ? '👑' : elo >= 600 ? '🏆' : elo >= 300 ? '💎' : elo >= 150 ? '⭐' : elo >= 50 ? '📘' : '🌱';
+                const setText = function (id, text) {
+                    const el = $(id);
+                    if (el) el.textContent = text;
+                };
+                setText('profile-elo', String(elo));
+                setText('profile-rank', idx >= 0 ? '#' + (idx + 1) : '—');
+                setText('profile-level', pick(lvl.level.ru, lvl.level.en));
+                setText('profile-level-icon', levelIcon);
+                setText('profile-next', lvl.next
+                    ? pick('До «' + lvl.next.ru + '»: ' + Math.max(0, lvl.next.min - elo) + ' ELO', 'To "' + lvl.next.en + '": ' + Math.max(0, lvl.next.min - elo) + ' ELO')
+                    : pick('Максимальный уровень', 'Max level'));
+                const bar = $('profile-progress');
+                if (bar) bar.style.width = lvl.progress + '%';
+                const priv = me && me.privilege && me.privilege.title ? me.privilege : null;
+                const privWrap = $('profile-priv');
+                if (privWrap) privWrap.classList.toggle('hidden', !priv);
+                if (priv) {
+                    setText('profile-priv-badge', priv.title);
+                    const descEl = $('profile-priv-desc');
+                    if (descEl) {
+                        descEl.textContent = priv.desc || '';
+                        descEl.classList.toggle('hidden', !priv.desc);
+                    }
+                }
+            }
+            window.fizaiRefreshProfileModal = function () {
+                const modal = $('profile-modal');
+                if (!modal || modal.style.display === 'none') return;
+                fillProfileElo();
+            };
+
             // ===== Профиль и прогресс =====
             function openProfileModal() {
                 if (!currentUser) { openAuthModal('login'); return; }
@@ -4573,9 +4992,10 @@ Interface language: English. The whole app is now in English, so always answer t
                 const nameEl = $('profile-name');
                 const emailEl = $('profile-email');
                 const name = currentUser.displayName || currentUser.email || 'Пользователь';
-                if (avatar) avatar.textContent = (name.trim()[0] || 'F').toUpperCase();
+                if (avatar) fizaiPaintAvatar(avatar, fizaiMyAvatarId(), name);
                 if (nameEl) nameEl.textContent = name;
                 if (emailEl) emailEl.textContent = currentUser.email || '';
+                fillProfileElo();
                 // статистика
                 const progress = (typeof loadQuizProgress === 'function') ? loadQuizProgress() : [];
                 const total = progress.length;
@@ -4629,6 +5049,80 @@ Interface language: English. The whole app is now in English, so always answer t
                 const modal = $('profile-modal');
                 if (modal) { modal.style.display = 'none'; document.body.style.overflow = ''; }
             }
+            function openAvatarPicker() {
+                if (!currentUser) { openAuthModal('login'); return; }
+                const grid = $('avatar-picker-grid');
+                const msg = $('avatar-picker-msg');
+                if (msg) msg.classList.add('hidden');
+                const current = fizaiMyAvatarId();
+                if (grid) {
+                    grid.innerHTML = FIZAI_AVATARS.map(function (a) {
+                        const active = a.id === current;
+                        return `<button type="button" onclick="selectAvatarChoice('${a.id}')" title="${escapeHtml(a.emoji)}"
+                            class="relative aspect-square rounded-2xl flex items-center justify-center text-2xl transition-all border-2 ${active ? 'border-primary ring-2 ring-primary/40' : 'border-transparent hover:border-primary/50'}"
+                            style="background:${a.bg}">
+                            <span>${a.emoji}</span>
+                            ${active ? '<span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-primary text-white text-[10px] flex items-center justify-center border-2 border-dark-800"><i class="fa-solid fa-check"></i></span>' : ''}
+                        </button>`;
+                    }).join('');
+                }
+                const modal = $('avatar-modal');
+                if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+            }
+
+            function closeAvatarPicker() {
+                const modal = $('avatar-modal');
+                if (modal) modal.style.display = 'none';
+                const profileModal = $('profile-modal');
+                const settingsModal = $('settings-modal');
+                const anyOpen = (profileModal && profileModal.style.display === 'flex') || (settingsModal && settingsModal.style.display === 'flex');
+                if (!anyOpen) document.body.style.overflow = '';
+            }
+
+            function avatarPickerMessage(text, isError) {
+                const msg = $('avatar-picker-msg');
+                if (!msg) return;
+                msg.textContent = text;
+                msg.className = 'text-sm rounded-xl px-3 py-2 mb-3 ' + (isError
+                    ? 'bg-red-500/15 text-red-300 border border-red-500/30'
+                    : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30');
+            }
+
+            function selectAvatarChoice(avatarId) {
+                if (!currentUser) return;
+                if (!window.fizaiElo || typeof window.fizaiElo.setAvatar !== 'function') {
+                    avatarPickerMessage('ELO-модуль не загрузился. Обновите страницу.', true);
+                    return;
+                }
+                window.fizaiElo.setAvatar(currentUser.uid, avatarId).then(function () {
+                    fizaiRefreshAvatarUI();
+                    openAvatarPicker();
+                    avatarPickerMessage('Аватарка обновлена!', false);
+                }).catch(function (e) {
+                    avatarPickerMessage('Ошибка: ' + ((e && e.message) ? e.message : e), true);
+                });
+            }
+
+            function clearAvatarChoice() {
+                if (!currentUser) return;
+                if (!window.fizaiElo || typeof window.fizaiElo.clearAvatar !== 'function') {
+                    avatarPickerMessage('ELO-модуль не загрузился. Обновите страницу.', true);
+                    return;
+                }
+                window.fizaiElo.clearAvatar(currentUser.uid).then(function () {
+                    fizaiRefreshAvatarUI();
+                    openAvatarPicker();
+                    avatarPickerMessage('Аватарка сброшена.', false);
+                }).catch(function (e) {
+                    avatarPickerMessage('Ошибка: ' + ((e && e.message) ? e.message : e), true);
+                });
+            }
+
+            window.openAvatarPicker = openAvatarPicker;
+            window.closeAvatarPicker = closeAvatarPicker;
+            window.selectAvatarChoice = selectAvatarChoice;
+            window.clearAvatarChoice = clearAvatarChoice;
+
             window.openProfileModal = openProfileModal;
             window.closeProfileModal = closeProfileModal;
 
@@ -4654,6 +5148,16 @@ Interface language: English. The whole app is now in English, so always answer t
                     <p class="text-xs text-gray-400 mt-1">Управление аккаунтом</p>
                 </div>
                 <div class="space-y-4">
+                    <div class="flex items-center gap-3 bg-dark-900/60 border border-dark-600 rounded-xl px-4 py-3">
+                        <div id="settings-avatar" class="w-11 h-11 rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-lg font-bold shrink-0">F</div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm text-gray-200">Аватарка</p>
+                            <p class="text-[11px] text-gray-500">Видна в рейтинге и профиле</p>
+                        </div>
+                        <button onclick="closeSettingsModal(); openAvatarPicker();" class="px-3 py-2 rounded-lg bg-primary/15 hover:bg-primary/25 text-primary-light text-xs font-medium border border-primary/30 transition-all shrink-0">
+                            Изменить
+                        </button>
+                    </div>
                     <div>
                         <label class="block text-xs text-gray-400 mb-1.5">Имя</label>
                         <input id="settings-name" type="text" class="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-primary" placeholder="Ваше имя">
@@ -4686,6 +5190,30 @@ Interface language: English. The whole app is now in English, so always answer t
         </div>
     </div>
 
+    <!-- Модальное окно выбора аватарки -->
+    <div id="avatar-modal" class="fixed inset-0 z-[110] items-center justify-center p-4 bg-black/70 backdrop-blur-sm" style="display:none" onclick="if (event.target === this) closeAvatarPicker();">
+        <div class="relative w-full max-w-md bg-dark-800 border border-dark-600 rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto">
+            <button onclick="closeAvatarPicker()" title="Закрыть" aria-label="Закрыть"
+                    class="absolute top-3 right-3 w-8 h-8 rounded-lg bg-dark-700 hover:bg-dark-600 text-gray-400 hover:text-white flex items-center justify-center transition-all z-10">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="p-6 md:p-7">
+                <div class="text-center mb-5">
+                    <div class="w-12 h-12 mx-auto rounded-2xl bg-primary/20 text-primary-light flex items-center justify-center text-xl mb-3">
+                        <i class="fa-solid fa-camera"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white">Выберите аватарку</h3>
+                    <p class="text-xs text-gray-400 mt-1">Она появится в рейтинге и профиле</p>
+                </div>
+                <div id="avatar-picker-grid" class="grid grid-cols-4 gap-3 mb-5"></div>
+                <div id="avatar-picker-msg" class="hidden text-sm rounded-xl px-3 py-2 mb-3"></div>
+                <button onclick="clearAvatarChoice()" class="w-full px-4 py-2.5 rounded-xl bg-dark-700 hover:bg-dark-600 text-gray-300 text-sm font-medium border border-dark-600 transition-all">
+                    <i class="fa-solid fa-rotate-left mr-2"></i>Сбросить на стандартную
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Модальное окно профиля и прогресса -->
     <div id="profile-modal" class="fixed inset-0 z-[100] items-center justify-center p-4 bg-black/70 backdrop-blur-sm" style="display:none" onclick="if (event.target === this) closeProfileModal();">
         <div class="relative w-full max-w-lg bg-dark-800 border border-dark-600 rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto">
@@ -4695,9 +5223,40 @@ Interface language: English. The whole app is now in English, so always answer t
             </button>
             <div class="p-6 md:p-7">
                 <div class="text-center mb-5">
-                    <div id="profile-avatar" class="w-16 h-16 mx-auto rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-2xl font-bold mb-3">F</div>
+                    <div class="relative w-16 h-16 mx-auto mb-3">
+                        <div id="profile-avatar" class="w-16 h-16 rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-2xl font-bold">F</div>
+                        <button onclick="openAvatarPicker();" title="Сменить аватарку" aria-label="Сменить аватарку"
+                                class="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary hover:bg-primary-hover text-white flex items-center justify-center text-xs border-2 border-dark-800 transition-all">
+                            <i class="fa-solid fa-camera"></i>
+                        </button>
+                    </div>
                     <h3 id="profile-name" class="text-xl font-bold text-white">Профиль</h3>
                     <p id="profile-email" class="text-xs text-gray-400 mt-1"></p>
+                    <div id="profile-priv" class="hidden mt-2">
+                        <span id="profile-priv-badge" class="inline-flex items-center gap-1 text-xs font-semibold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 rounded-lg"></span>
+                        <p id="profile-priv-desc" class="text-xs text-gray-400 mt-1.5"></p>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-r from-amber-500/15 via-dark-900/40 to-primary/10 border border-amber-500/30 rounded-2xl p-4 mb-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <p class="text-[10px] text-gray-400 uppercase tracking-wider">Ваш ELO</p>
+                            <p id="profile-elo" class="text-3xl font-extrabold text-amber-400">0</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-400 uppercase tracking-wider">Место в рейтинге</p>
+                            <p id="profile-rank" class="text-2xl font-extrabold text-white">—</p>
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-amber-500/20">
+                        <div class="flex items-center justify-between gap-2 mb-1.5">
+                            <p class="text-xs text-gray-200"><span id="profile-level-icon">🌱</span> <span id="profile-level">Новичок</span></p>
+                            <p id="profile-next" class="text-[11px] text-gray-500"></p>
+                        </div>
+                        <div class="w-full bg-dark-800 rounded-full h-2 overflow-hidden">
+                            <div id="profile-progress" class="h-2 rounded-full bg-gradient-to-r from-amber-500 to-primary transition-all" style="width:0%"></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="grid grid-cols-3 gap-3 mb-5">
                     <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3 text-center">
