@@ -4022,6 +4022,7 @@ Interface language: English. The whole app is now in English, so always answer t
                         return { uid: uid };
                     });
                 },
+                setCurrentUser: function (user) { currentUser = user || null; },
                 refresh: function () {
                     return db.ref('stats/online').once('value').then(function (snap) {
                         rebuildEloPlayers(snap.val() || {});
@@ -4894,6 +4895,9 @@ Interface language: English. The whole app is now in English, so always answer t
             function handleAuthState(user) {
                 const previousUid = currentUser ? currentUser.uid : null;
                 currentUser = user || null;
+                if (window.fizaiElo && typeof window.fizaiElo.setCurrentUser === 'function') {
+                    window.fizaiElo.setCurrentUser(currentUser);
+                }
                 window.fizaiUserName = (user && (user.displayName || user.email)) ? (user.displayName || user.email) : '';
                 updateUserUI(currentUser);
                 updateAIView();
