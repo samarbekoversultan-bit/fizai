@@ -127,6 +127,10 @@
                     <i class="fa-solid fa-chart-simple w-5"></i>
                     <span>Статистика</span>
                 </button>
+                <button onclick="switchTab('rating')" id="nav-rating" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-gray-400 hover:bg-dark-700 hover:text-gray-200">
+                    <i class="fa-solid fa-trophy w-5"></i>
+                    <span>Рейтинг</span>
+                </button>
                 <button onclick="openAdminPanel()" id="nav-admin" class="nav-btn hidden w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-amber-400 hover:bg-amber-500/10 hover:text-amber-300">
                     <i class="fa-solid fa-shield-halved w-5"></i>
                     <span>Админ-панель</span>
@@ -519,6 +523,9 @@
                         <button onclick="switchTab('stats')" class="text-xs bg-primary/20 hover:bg-primary/30 text-primary-light px-3 py-1.5 rounded-full border border-primary/30 transition-all">
                             <i class="fa-solid fa-chart-simple mr-1"></i>Моя статистика
                         </button>
+                        <button onclick="switchTab('rating')" class="text-xs bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 px-3 py-1.5 rounded-full border border-amber-500/30 transition-all">
+                            <i class="fa-solid fa-trophy mr-1"></i>Рейтинг
+                        </button>
                         <span class="text-xs bg-accent/20 text-accent px-3 py-1 rounded-full border border-accent/30">✨ Новое</span>
                     </div>
                 </div>
@@ -537,6 +544,9 @@
                         <button onclick="switchTab('quizzes')" class="text-xs bg-primary/20 hover:bg-primary/30 text-primary-light px-3 py-1.5 rounded-lg border border-primary/30 transition-all">
                             <i class="fa-solid fa-play mr-1"></i>Пройти квиз
                         </button>
+                        <button onclick="switchTab('rating')" class="text-xs bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 px-3 py-1.5 rounded-lg border border-amber-500/30 transition-all">
+                            <i class="fa-solid fa-trophy mr-1"></i>Рейтинг
+                        </button>
                         <button onclick="resetQuizStats()" id="stats-reset-btn" class="text-xs bg-dark-700 hover:bg-red-500/20 text-gray-400 hover:text-red-300 px-3 py-1.5 rounded-lg border border-dark-600 hover:border-red-500/30 transition-all">
                             <i class="fa-solid fa-trash-can mr-1"></i>Сбросить
                         </button>
@@ -545,12 +555,59 @@
                 <div id="stats-content"></div>
             </section>
 
+            <!-- RATING -->
+            <section id="view-rating" class="tab-content hidden max-w-4xl mx-auto space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-xl md:text-2xl font-bold text-white">Рейтинг игроков</h3>
+                        <p class="text-gray-400 text-sm">Общий зачёт ELO: чем выше класс и лучше результат, тем больше очков</p>
+                    </div>
+                    <button onclick="switchTab('quizzes')" class="text-xs bg-primary/20 hover:bg-primary/30 text-primary-light px-3 py-1.5 rounded-lg border border-primary/30 transition-all self-start md:self-auto">
+                        <i class="fa-solid fa-play mr-1"></i>Пройти квиз
+                    </button>
+                </div>
+                <div id="my-elo-card"></div>
+                <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 md:p-6">
+                    <div class="flex items-center justify-between gap-3 mb-4">
+                        <h4 class="font-semibold text-gray-200">Топ игроков</h4>
+                        <span id="leaderboard-count" class="text-xs text-gray-500"></span>
+                    </div>
+                    <div id="leaderboard-list" class="space-y-2"></div>
+                </div>
+                <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 md:p-6">
+                    <h4 class="font-semibold text-gray-200 mb-3">Как начисляется ELO</h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                        <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3 text-center">
+                            <p class="text-xs text-gray-400">7 класс</p>
+                            <p class="text-lg font-extrabold text-amber-400">+15</p>
+                        </div>
+                        <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3 text-center">
+                            <p class="text-xs text-gray-400">8 класс</p>
+                            <p class="text-lg font-extrabold text-amber-400">+20</p>
+                        </div>
+                        <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3 text-center">
+                            <p class="text-xs text-gray-400">9 класс</p>
+                            <p class="text-lg font-extrabold text-amber-400">+25</p>
+                        </div>
+                        <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3 text-center">
+                            <p class="text-xs text-gray-400">10 класс</p>
+                            <p class="text-lg font-extrabold text-amber-400">+30</p>
+                        </div>
+                        <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3 text-center">
+                            <p class="text-xs text-gray-400">11 класс</p>
+                            <p class="text-lg font-extrabold text-amber-400">+35</p>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">Это максимум за квиз на 10/10. За меньшее число правильных ответов ELO начисляется пропорционально. Очки суммируются за все попытки.</p>
+                </div>
+            </section>
+
             <!-- ADMIN PANEL -->
             <section id="view-admin" class="tab-content hidden max-w-4xl mx-auto space-y-6">
                 <div class="flex items-center justify-between gap-4">
                     <div>
                         <h3 class="text-xl md:text-2xl font-bold text-white">Админ-панель</h3>
-                        <p class="text-gray-400 text-sm">Управление квизами (добавление и удаление вопросов)</p>
+                        <p class="text-gray-400 text-sm">Управление квизами и ELO игроков</p>
                     </div>
                     <button onclick="lockAdminPanel()" class="text-xs bg-red-500/20 hover:bg-red-500/30 text-red-300 px-3 py-1.5 rounded-lg border border-red-500/30 transition-all">Выйти из админки</button>
                 </div>
@@ -578,6 +635,20 @@
                 <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 md:p-6">
                     <h4 class="font-semibold text-gray-200 mb-3">Пользовательские вопросы</h4>
                     <div id="admin-list" class="space-y-2 text-sm"></div>
+                </div>
+                <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 md:p-6 space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h4 class="font-semibold text-gray-200">ELO игроков</h4>
+                            <p class="text-xs text-gray-500">Начислите или спишите очки любому игроку</p>
+                        </div>
+                        <button onclick="adminLoadEloPlayers()" class="text-xs bg-dark-700 hover:bg-dark-600 text-gray-300 px-3 py-1.5 rounded-lg border border-dark-600 transition-all">
+                            <i class="fa-solid fa-rotate mr-1"></i>Обновить
+                        </button>
+                    </div>
+                    <input id="admin-elo-search" type="text" placeholder="Поиск по имени или ID" oninput="adminRenderEloList()" class="w-full bg-dark-900 border border-dark-600 rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-400">
+                    <div id="admin-elo-list" class="space-y-2 text-sm"></div>
+                    <p id="admin-elo-msg" class="text-sm text-gray-400"></p>
                 </div>
             </section>
 
@@ -657,6 +728,7 @@
             calculators: ['Интерактивные калькуляторы', 'Interactive Calculators', 'Интерактивті калькуляторлар'],
             quizzes: ['Квизы по физике', 'Physics Quizzes', 'Физика квиздері'],
             stats: ['Статистика квизов', 'Quiz Statistics', 'Квиз статистикасы'],
+            rating: ['Рейтинг игроков', 'Player Leaderboard', 'Ойыншылар рейтингі'],
             admin: ['Админ-панель', 'Admin Panel', 'Әкімші панелі']
         };
 
@@ -928,6 +1000,7 @@
             if (typeof filterCalculators === 'function') filterCalculators();
             if (typeof renderQuiz === 'function') renderQuiz();
             if (typeof renderQuizStats === 'function') renderQuizStats();
+            if (typeof renderLeaderboard === 'function') renderLeaderboard();
             const chat = document.getElementById('chat-container');
             if (chat && chat.dataset.greeting === '1') chat.innerHTML = typeof welcomeHTML === 'function' ? welcomeHTML() : greetingHTML();
             if (chat && chat.dataset.greeting === 'cleared') chat.innerHTML = clearedHTML();
@@ -1076,7 +1149,7 @@
 
         window.switchTab = function(tabId) {
             // Закрытые разделы доступны только после входа в аккаунт
-            var PROTECTED_TABS = ['ai', 'quizzes', 'stats', 'calculators', 'formulas', 'admin'];
+            var PROTECTED_TABS = ['ai', 'quizzes', 'stats', 'rating', 'calculators', 'formulas', 'admin'];
             if (PROTECTED_TABS.indexOf(tabId) !== -1 && !(window.fizaiAuth && window.fizaiAuth.isSignedIn())) {
                 if (typeof window.openAuthModal === 'function') window.openAuthModal('login');
                 return;
@@ -1084,6 +1157,7 @@
             var prevTab = currentTab;
             currentTab = tabId;
             if (tabId === 'stats' && typeof window.renderQuizStats === 'function') window.renderQuizStats();
+            if (tabId === 'rating' && typeof window.renderLeaderboard === 'function') window.renderLeaderboard();
             if (tabId === 'ai') {
                 warmUpAI();
                 if (prevTab !== 'ai' && typeof window.resetChatSession === 'function') window.resetChatSession();
@@ -1603,6 +1677,8 @@
         let quizAnswered = -1;    // -1 = ещё не ответили
         let quizFinished = false;
         let quizWrong = [];   // вопросы, на которые ответили неверно: { text, correct, chosen }
+        let quizEloGain = 0;  // сколько ELO начислено за последний завершённый квиз
+        let quizEloTotal = null; // итоговый ELO игрока после сохранения
 
         function loadAdminQuizzes() {
             try {
@@ -1659,6 +1735,8 @@
             quizScore = 0;
             quizFinished = false;
             quizWrong = [];
+            quizEloGain = 0;
+            quizEloTotal = null;
             dealQuiz();
             renderQuiz();
         }
@@ -1716,6 +1794,8 @@
             quizScore = 0;
             quizAnswered = -1;
             quizFinished = false;
+            quizEloGain = 0;
+            quizEloTotal = null;
             renderQuiz();
         };
 
@@ -1736,6 +1816,9 @@
                     : pct >= 0.5
                         ? pick('Неплохо! Есть над чем поработать.', 'Not bad! There is room to improve.')
                         : pick('Стоит повторить тему и попробовать снова.', 'Worth reviewing the topic and trying again.');
+                const eloBadge = quizEloGain > 0
+                    ? `<p class="inline-flex items-center gap-2 text-sm font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-full"><i class="fa-solid fa-bolt"></i>+${quizEloGain} ELO${quizEloTotal != null ? ' · ' + pick('всего', 'total') + ' ' + quizEloTotal : ''}</p>`
+                    : '';
                 card.innerHTML = `
                     <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 md:p-8 text-center space-y-4">
                         <div class="w-16 h-16 mx-auto rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-2xl">
@@ -1745,6 +1828,7 @@
                         <p class="text-3xl font-extrabold text-accent">${quizScore} / ${total}</p>
                         <p class="text-sm text-gray-400">${pick('Правильных ответов:', 'Correct answers:')} ${quizScore} ${pick('из', 'of')} ${total}</p>
                         <p class="text-gray-300">${verdict}</p>
+                        ${eloBadge}
                         <div class="flex flex-wrap items-center justify-center gap-3">
                             <button onclick="restartQuiz()" class="px-6 py-3 bg-primary hover:bg-primary-hover text-white font-medium rounded-xl transition-all">${pick('Играть снова', 'Play again')}</button>
                             <button onclick="changeQuizGrade()" class="px-6 py-3 bg-dark-700 hover:bg-dark-600 text-gray-200 font-medium rounded-xl border border-dark-600 transition-all">${pick('Сменить класс', 'Change grade')}</button>
@@ -1864,6 +1948,7 @@
             if (typeof refreshAdminNav === 'function') refreshAdminNav();
             switchTab('admin');
             renderAdminList();
+            if (typeof adminLoadEloPlayers === 'function') adminLoadEloPlayers();
         };
         window.lockAdminPanel = function() { switchTab('dashboard'); };
         window.adminAddQuestion = function() {
@@ -1933,12 +2018,13 @@
             } catch (e) { return []; }
         }
         function saveQuizProgress() {
+            const totalQuestions = quizDeck.length;
             try {
                 const arr = loadQuizProgress();
                 arr.push({
                     grade: quizGrade,
                     score: quizScore,
-                    total: quizDeck.length,
+                    total: totalQuestions,
                     wrong: quizWrong.length,
                     date: Date.now()
                 });
@@ -1946,10 +2032,22 @@
                 while (arr.length > 200) arr.shift();
                 localStorage.setItem(QUIZ_PROGRESS_KEY, JSON.stringify(arr));
             } catch (e) {}
-            // если вошли — также сохранить в Firebase
+            // ELO за квиз (для вошедших игроков)
             try {
-                if (window.fizaiAuth && window.fizaiAuth.isSignedIn() && typeof firebase !== 'undefined' && firebase.database) {
-                    // currentUser доступен в firebase IIFE; здесь мы в первом скрипте, поэтому используем глобаль
+                quizEloGain = (window.fizaiElo && typeof window.fizaiElo.earnedFor === 'function')
+                    ? window.fizaiElo.earnedFor(quizGrade, quizScore, totalQuestions)
+                    : 0;
+                quizEloTotal = null;
+                if (window.fizaiElo && typeof window.fizaiElo.submitQuizResult === 'function') {
+                    const p = window.fizaiElo.submitQuizResult({ grade: quizGrade, score: quizScore, total: totalQuestions });
+                    if (p && typeof p.then === 'function') {
+                        p.then(function (res) {
+                            if (res && typeof res.elo === 'number') {
+                                quizEloTotal = res.elo;
+                                if (quizFinished) renderQuiz();
+                            }
+                        });
+                    }
                 }
             } catch (e) {}
         }
@@ -1985,6 +2083,13 @@
             if (b === 1) return 'попытка';
             return 'попыток';
         }
+        function pluralQuizzes(n) {
+            const a = Math.abs(n) % 100, b = a % 10;
+            if (a > 10 && a < 20) return 'квизов';
+            if (b > 1 && b < 5) return 'квиза';
+            if (b === 1) return 'квиз';
+            return 'квизов';
+        }
         function quizPctColor(pct) {
             if (pct >= 80) return { text: 'text-emerald-400', bg: 'bg-emerald-500/15', bar: 'from-emerald-500 to-emerald-400' };
             if (pct >= 50) return { text: 'text-primary-light', bg: 'bg-primary/15', bar: 'from-primary to-accent' };
@@ -1998,6 +2103,7 @@
 
             if (!arr.length) {
                 el.innerHTML = `
+                    <div id="stats-elo-card"></div>
                     <div class="bg-dark-800 border border-dark-600 rounded-2xl p-8 md:p-12 text-center space-y-4">
                         <div class="w-16 h-16 mx-auto rounded-full bg-primary/15 text-primary-light flex items-center justify-center text-2xl">
                             <i class="fa-solid fa-chart-simple"></i>
@@ -2009,6 +2115,7 @@
                             <span>${pick('Пройти квиз', 'Take a quiz')}</span>
                         </button>
                     </div>`;
+                if (typeof renderStatsEloCard === 'function') renderStatsEloCard();
                 return;
             }
 
@@ -2087,6 +2194,7 @@
             }).join('');
 
             el.innerHTML = `
+                <div id="stats-elo-card"></div>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 text-center">
                         <p class="text-2xl md:text-3xl font-extrabold text-primary-light">${attempts}</p>
@@ -2118,6 +2226,7 @@
                     <h4 class="font-semibold text-gray-200 mb-4">${pick('Последние попытки', 'Recent attempts')}</h4>
                     <div class="space-y-2">${recentRows}</div>
                 </div>`;
+            if (typeof renderStatsEloCard === 'function') renderStatsEloCard();
         }
         window.renderQuizStats = renderQuizStats;
 
@@ -2142,6 +2251,207 @@
             clearTimeout(statsResetTimer);
             restore();
             renderQuizStats();
+        };
+
+        // ===== ELO: карточка в статистике, рейтинг игроков и админ-панель =====
+        function renderStatsEloCard() {
+            const el = document.getElementById('stats-elo-card');
+            if (!el) return;
+            const loaded = window.fizaiElo && window.fizaiElo.isLoaded ? window.fizaiElo.isLoaded() : false;
+            const me = (window.fizaiElo && window.fizaiElo.getMe) ? window.fizaiElo.getMe() : null;
+            const players = (window.fizaiElo && window.fizaiElo.getPlayers) ? window.fizaiElo.getPlayers() : [];
+            const idx = me ? players.findIndex(function (p) { return p.uid === me.uid; }) : -1;
+            const rank = idx >= 0 ? idx + 1 : 0;
+            if (!loaded) {
+                el.innerHTML = `<div class="mb-6 bg-dark-800 border border-dark-600 rounded-2xl p-5 flex items-center gap-3 text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i><span class="text-sm">${pick('Загружаем ELO...', 'Loading ELO...')}</span></div>`;
+                return;
+            }
+            el.innerHTML = `
+                <div class="mb-6 bg-gradient-to-r from-amber-500/15 via-dark-800 to-primary/10 border border-amber-500/30 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl shrink-0">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-gray-400 uppercase tracking-wider">${pick('Ваш ELO', 'Your ELO')}</p>
+                            <p class="text-2xl font-extrabold text-white">${me ? me.elo : 0}${rank ? `<span class="text-sm font-semibold text-amber-400 ml-2">#${rank}</span>` : ''}</p>
+                            <p class="text-xs text-gray-500">${pick('из', 'of')} ${players.length} ${pick(pluralQuizzes(players.length).replace('квиз', 'игрок'), 'players')}</p>
+                        </div>
+                    </div>
+                    <button onclick="switchTab('rating')" class="self-start sm:self-auto px-4 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-sm font-medium border border-amber-500/30 transition-all">
+                        ${pick('Рейтинг игроков', 'Leaderboard')} <i class="fa-solid fa-arrow-right ml-1"></i>
+                    </button>
+                </div>`;
+        }
+        window.renderStatsEloCard = renderStatsEloCard;
+
+        function renderMyEloCard() {
+            const el = document.getElementById('my-elo-card');
+            if (!el) return;
+            const loaded = window.fizaiElo && window.fizaiElo.isLoaded ? window.fizaiElo.isLoaded() : false;
+            const me = (window.fizaiElo && window.fizaiElo.getMe) ? window.fizaiElo.getMe() : null;
+            const players = (window.fizaiElo && window.fizaiElo.getPlayers) ? window.fizaiElo.getPlayers() : [];
+            const idx = me ? players.findIndex(function (p) { return p.uid === me.uid; }) : -1;
+            const rank = idx >= 0 ? idx + 1 : 0;
+            if (!loaded) {
+                el.innerHTML = `<div class="bg-dark-800 border border-dark-600 rounded-2xl p-6 flex items-center gap-3 text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i><span class="text-sm">${pick('Загружаем ваш ELO...', 'Loading your ELO...')}</span></div>`;
+                return;
+            }
+            el.innerHTML = `
+                <div class="bg-gradient-to-r from-amber-500/15 via-dark-800 to-primary/10 border border-amber-500/30 rounded-2xl p-5 md:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                    <div class="flex items-center gap-4">
+                        <div class="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl shrink-0">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-gray-400 uppercase tracking-wider">${pick('Ваш ELO', 'Your ELO')}</p>
+                            <p class="text-3xl font-extrabold text-white">${me ? me.elo : 0}${rank ? `<span class="text-base font-semibold text-amber-400 ml-2">#${rank}</span>` : ''}</p>
+                            <p class="text-xs text-gray-500">${rank ? pick('Место в рейтинге', 'Leaderboard rank') + ' · ' : ''}${players.length} ${pick('игроков', 'players')}</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 text-center sm:text-right">
+                        <div>
+                            <p class="text-lg font-bold text-gray-100">${me ? me.quizzes : 0}</p>
+                            <p class="text-[10px] text-gray-500 uppercase tracking-wider">${pick('Квизов', 'Quizzes')}</p>
+                        </div>
+                        <div>
+                            <p class="text-lg font-bold text-emerald-400">${me ? me.best : 0}%</p>
+                            <p class="text-[10px] text-gray-500 uppercase tracking-wider">${pick('Лучший', 'Best')}</p>
+                        </div>
+                    </div>
+                </div>`;
+        }
+        window.renderMyEloCard = renderMyEloCard;
+
+        function renderLeaderboard() {
+            const list = document.getElementById('leaderboard-list');
+            if (!list) return;
+            const countEl = document.getElementById('leaderboard-count');
+            const loaded = window.fizaiElo && window.fizaiElo.isLoaded ? window.fizaiElo.isLoaded() : false;
+            const players = (window.fizaiElo && window.fizaiElo.getPlayers) ? window.fizaiElo.getPlayers() : [];
+            if (!loaded) {
+                list.innerHTML = `<div class="text-center text-gray-500 py-8 text-sm"><i class="fa-solid fa-spinner fa-spin mr-2"></i>${pick('Загружаем рейтинг...', 'Loading leaderboard...')}</div>`;
+                if (countEl) countEl.textContent = '';
+                renderMyEloCard();
+                return;
+            }
+            if (!players.length) {
+                list.innerHTML = `
+                    <div class="text-center py-8 space-y-3">
+                        <div class="w-14 h-14 mx-auto rounded-full bg-amber-500/15 text-amber-400 flex items-center justify-center text-2xl"><i class="fa-solid fa-trophy"></i></div>
+                        <p class="text-gray-300 font-medium">${pick('Пока в рейтинге никого нет', 'No players in the leaderboard yet')}</p>
+                        <p class="text-sm text-gray-500">${pick('Пройди квиз первым — и займи первое место!', 'Be the first to take a quiz and claim the top spot!')}</p>
+                        <button onclick="switchTab('quizzes')" class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-sm font-medium rounded-xl transition-all"><i class="fa-solid fa-play"></i><span>${pick('Пройти квиз', 'Take a quiz')}</span></button>
+                    </div>`;
+                if (countEl) countEl.textContent = '0';
+                renderMyEloCard();
+                return;
+            }
+            if (countEl) countEl.textContent = players.length + ' ' + pick(pluralQuizzes(players.length).replace('квиз', 'игрок'), 'players');
+            const myUid = (window.fizaiElo && window.fizaiElo.getUid) ? window.fizaiElo.getUid() : '';
+            list.innerHTML = players.slice(0, 50).map(function (p, i) {
+                const rank = i + 1;
+                const me = p.uid === myUid;
+                let medal = `<span class="text-sm font-bold text-gray-500">${rank}</span>`;
+                if (rank === 1) medal = '<span class="text-lg">🥇</span>';
+                else if (rank === 2) medal = '<span class="text-lg">🥈</span>';
+                else if (rank === 3) medal = '<span class="text-lg">🥉</span>';
+                const initial = String(p.name || 'И').trim().charAt(0).toUpperCase() || 'И';
+                return `
+                    <div class="flex items-center gap-3 px-3 py-3 rounded-xl border ${me ? 'border-primary/50 bg-primary/10' : 'border-dark-600 bg-dark-900/60'}">
+                        <div class="w-8 flex items-center justify-center shrink-0">${medal}</div>
+                        <div class="w-9 h-9 rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-sm font-bold shrink-0">${escapeHtml(initial)}</div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-100 truncate">${escapeHtml(p.name)}${me ? ' <span class="text-[10px] text-primary-light">(' + pick('вы', 'you') + ')</span>' : ''}</p>
+                            <p class="text-[11px] text-gray-500">${p.quizzes} ${pick(pluralQuizzes(p.quizzes), p.quizzes === 1 ? 'quiz' : 'quizzes')} · ${pick('лучший', 'best')} ${p.best}%</p>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <p class="text-lg font-extrabold text-amber-400">${p.elo}</p>
+                            <p class="text-[10px] text-gray-500 uppercase tracking-wider">ELO</p>
+                        </div>
+                    </div>`;
+            }).join('');
+            renderMyEloCard();
+        }
+        window.renderLeaderboard = renderLeaderboard;
+
+        window.adminLoadEloPlayers = function () {
+            const msg = document.getElementById('admin-elo-msg');
+            if (msg) msg.textContent = 'Загружаем игроков...';
+            const done = function (err) {
+                if (msg) msg.textContent = err ? ('Ошибка: ' + err) : '';
+                window.adminRenderEloList();
+            };
+            if (window.fizaiElo && typeof window.fizaiElo.refresh === 'function') {
+                window.fizaiElo.refresh().then(function () { done(); }).catch(function (e) { done((e && e.message) || String(e)); });
+            } else {
+                done();
+            }
+        };
+
+        window.adminRenderEloList = function () {
+            const el = document.getElementById('admin-elo-list');
+            if (!el) return;
+            const searchEl = document.getElementById('admin-elo-search');
+            const q = (searchEl ? searchEl.value : '').trim().toLowerCase();
+            const players = (window.fizaiElo && window.fizaiElo.getPlayers) ? window.fizaiElo.getPlayers() : [];
+            const list = players.filter(function (p) {
+                if (!q) return true;
+                return String(p.name || '').toLowerCase().indexOf(q) !== -1 || String(p.uid || '').toLowerCase().indexOf(q) !== -1;
+            });
+            if (!list.length) {
+                el.innerHTML = '<p class="text-gray-500">' + (players.length ? 'Игроки не найдены.' : 'Пока нет игроков с ELO.') + '</p>';
+                return;
+            }
+            el.innerHTML = list.map(function (p) {
+                const uid = String(p.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
+                return `
+                    <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3 space-y-2">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-gray-200 truncate">${escapeHtml(p.name)} <span class="text-[10px] text-gray-500">ID ${escapeHtml(uid.slice(0, 8))}</span></p>
+                                <p class="text-[11px] text-gray-500">ELO: <span class="text-amber-400 font-semibold">${p.elo}</span> · квизов: ${p.quizzes} · лучший: ${p.best}%</p>
+                            </div>
+                            <div class="flex gap-1.5 shrink-0">
+                                <button onclick="adminAdjustElo('${uid}', 15)" class="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-xs transition-all">+15</button>
+                                <button onclick="adminAdjustElo('${uid}', 25)" class="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-xs transition-all">+25</button>
+                                <button onclick="adminAdjustElo('${uid}', 50)" class="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 text-xs transition-all">+50</button>
+                                <button onclick="adminAdjustElo('${uid}', -15)" class="px-2.5 py-1.5 rounded-lg bg-red-500/15 hover:bg-red-500/25 text-red-300 text-xs transition-all">-15</button>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <input id="admin-elo-amt-${uid}" type="number" placeholder="Своё значение (+/-)" class="flex-1 bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-400">
+                            <button onclick="adminApplyEloDelta('${uid}')" class="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-dark-900 text-xs font-medium transition-all">Начислить</button>
+                        </div>
+                    </div>`;
+            }).join('');
+        };
+
+        window.adminAdjustElo = function (uid, delta) {
+            const msg = document.getElementById('admin-elo-msg');
+            if (!window.fizaiElo || typeof window.fizaiElo.adjust !== 'function') {
+                if (msg) msg.textContent = 'ELO-модуль не загрузился.';
+                return;
+            }
+            if (msg) msg.textContent = 'Обновляем ELO...';
+            window.fizaiElo.adjust(uid, delta).then(function (p) {
+                if (msg) msg.textContent = 'Готово: ' + p.name + ' — ' + p.elo + ' ELO';
+                window.adminRenderEloList();
+            }).catch(function (e) {
+                if (msg) msg.textContent = 'Ошибка: ' + ((e && e.message) ? e.message : e);
+            });
+        };
+
+        window.adminApplyEloDelta = function (uid) {
+            const input = document.getElementById('admin-elo-amt-' + uid);
+            const delta = parseInt(input ? input.value : '', 10);
+            const msg = document.getElementById('admin-elo-msg');
+            if (!delta || !isFinite(delta)) {
+                if (msg) msg.textContent = 'Введите число (например, 100 или -25).';
+                return;
+            }
+            if (input) input.value = '';
+            window.adminAdjustElo(uid, delta);
         };
 
 
@@ -2891,7 +3201,8 @@ Interface language: English. The whole app is now in English, so always answer t
             const F = window.fizaiAuth = {
                 available: authAvailable,
                 isSignedIn: function () { return !!currentUser; },
-                refreshAI: function () { updateAIView(); }
+                refreshAI: function () { updateAIView(); },
+                getUser: function () { return currentUser; }
             };
 
             function $(id) { return document.getElementById(id); }
@@ -2944,6 +3255,259 @@ Interface language: English. The whole app is now in English, so always answer t
             try { app = firebase.app(); } catch (e) { app = firebase.initializeApp(firebaseConfig); }
             auth = firebase.auth();
             db = firebase.database();
+
+            // ===== ELO и рейтинг игроков =====
+            // В stats/online правилами разрешены только числовые значения,
+            // поэтому ELO упаковывается в число, а имя игрока — в ключ узла.
+            const ELO_MAX_BY_GRADE = { 7: 15, 8: 20, 9: 25, 10: 30, 11: 35 };
+            const ELO_PACK_OFFSET = 1000000000000000; // 1e15, чтобы значение не попало в счётчик онлайна
+            const ELO_PACK_ELO = 100000000;  // 1e8
+            const ELO_PACK_QUIZ = 10000;     // 1e4
+            let eloPlayers = [];
+            let eloLoaded = false;
+            let eloListenerAttached = false;
+
+            function b64urlEncode(str) {
+                try {
+                    const bytes = new TextEncoder().encode(String(str));
+                    let bin = '';
+                    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+                    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                } catch (e) { return 'some'; }
+            }
+            function b64urlDecode(str) {
+                try {
+                    let s = String(str).replace(/-/g, '+').replace(/_/g, '/');
+                    while (s.length % 4) s += '=';
+                    const bin = atob(s);
+                    const bytes = new Uint8Array(bin.length);
+                    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                    const text = new TextDecoder().decode(bytes);
+                    return text || 'Игрок';
+                } catch (e) { return 'Игрок'; }
+            }
+            function eloPublicName(user) {
+                const n = user && user.displayName ? String(user.displayName) : '';
+                const fallback = user && user.uid ? ('Игрок ' + String(user.uid).slice(-4).toUpperCase()) : 'Игрок';
+                return (n.replace(/\s+/g, ' ').trim() || fallback).slice(0, 40);
+            }
+            function packElo(elo, quizzes, best) {
+                const e = Math.max(0, Math.min(1000000, Math.round(Number(elo) || 0)));
+                const q = Math.max(0, Math.min(9999, Math.round(Number(quizzes) || 0)));
+                const b = Math.max(0, Math.min(100, Math.round(Number(best) || 0)));
+                return ELO_PACK_OFFSET + e * ELO_PACK_ELO + q * ELO_PACK_QUIZ + b;
+            }
+            function unpackElo(value) {
+                let v = Math.round(Number(value) || 0) - ELO_PACK_OFFSET;
+                if (!isFinite(v) || v < 0) v = 0;
+                const best = v % 10000;
+                const quizzes = Math.floor(v / 10000) % 10000;
+                const elo = Math.floor(v / 100000000);
+                return { elo: elo, quizzes: quizzes, best: best };
+            }
+            function parseEloKey(key) {
+                const i1 = String(key).indexOf('~');
+                if (i1 === -1) return null;
+                const type = key.slice(0, i1);
+                if (type !== 'lb' && type !== 'lbt') return null;
+                const rest = key.slice(i1 + 1);
+                const i2 = rest.indexOf('~');
+                if (i2 <= 0 || i2 >= rest.length - 1) return null;
+                return { type: type, uid: rest.slice(0, i2), nameB64: rest.slice(i2 + 1) };
+            }
+            function eloNodeKey(type, uid, nameB64) { return type + '~' + uid + '~' + nameB64; }
+            function eloRef(type, uid, nameB64) { return db.ref('stats/online/' + eloNodeKey(type, uid, nameB64)); }
+            function eloTimestamp(data, uid, nameB64) {
+                return Number(data[eloNodeKey('lbt', uid, nameB64)]) || 0;
+            }
+            function sortEloPlayers() {
+                eloPlayers.sort(function (a, b) {
+                    return b.elo - a.elo || b.quizzes - a.quizzes || String(a.name).localeCompare(String(b.name), 'ru');
+                });
+            }
+            function rebuildEloPlayers(data) {
+                data = data || {};
+                const grouped = {};
+                Object.keys(data).forEach(function (key) {
+                    const m = parseEloKey(key);
+                    if (!m || m.type !== 'lb') return;
+                    const stats = unpackElo(data[key]);
+                    const updatedAt = eloTimestamp(data, m.uid, m.nameB64);
+                    const candidate = {
+                        uid: m.uid,
+                        name: b64urlDecode(m.nameB64),
+                        nameB64: m.nameB64,
+                        elo: stats.elo,
+                        quizzes: stats.quizzes,
+                        best: stats.best,
+                        updatedAt: updatedAt
+                    };
+                    const prev = grouped[m.uid];
+                    if (!prev || candidate.updatedAt > prev.updatedAt || (candidate.updatedAt === prev.updatedAt && candidate.elo > prev.elo)) {
+                        grouped[m.uid] = candidate;
+                    }
+                });
+                eloPlayers = Object.keys(grouped).map(function (uid) { return grouped[uid]; });
+                sortEloPlayers();
+                eloLoaded = true;
+            }
+            function mergeEloPlayer(player) {
+                if (!player) return;
+                const i = eloPlayers.findIndex(function (x) { return x.uid === player.uid; });
+                if (i === -1) eloPlayers.push(player); else eloPlayers[i] = player;
+                sortEloPlayers();
+                eloLoaded = true;
+            }
+            function notifyElo() {
+                if (typeof window.renderLeaderboard === 'function') window.renderLeaderboard();
+                if (typeof window.renderStatsEloCard === 'function') window.renderStatsEloCard();
+            }
+            function attachEloListener() {
+                if (eloListenerAttached) return;
+                eloListenerAttached = true;
+                db.ref('stats/online').on('value', function (snap) {
+                    rebuildEloPlayers(snap.val() || {});
+                    notifyElo();
+                }, function (err) {
+                    eloLoaded = true;
+                    console.warn('ELO: не удалось загрузить рейтинг:', err && err.message);
+                    notifyElo();
+                });
+            }
+            function writeEloTimestamp(uid, nameB64, updatedAt) {
+                return eloRef('lbt', uid, nameB64).set(updatedAt).catch(function () {});
+            }
+
+            const Elo = window.fizaiElo = {
+                maxForGrade: function (grade) { return ELO_MAX_BY_GRADE[Number(grade)] || 0; },
+                earnedFor: function (grade, score, total) {
+                    const max = ELO_MAX_BY_GRADE[Number(grade)] || 0;
+                    const t = Number(total) || 0;
+                    const s = Number(score) || 0;
+                    if (!max || !t) return 0;
+                    return Math.max(0, Math.round(max * Math.min(s, t) / t));
+                },
+                getPlayers: function () { return eloPlayers.slice(); },
+                isLoaded: function () { return eloLoaded; },
+                getUid: function () { return currentUser ? currentUser.uid : ''; },
+                getMe: function () {
+                    if (!currentUser) return null;
+                    return eloPlayers.find(function (p) { return p.uid === currentUser.uid; }) || null;
+                },
+                ensureProfile: function (user) {
+                    if (!user || !user.uid) return Promise.resolve(null);
+                    const uid = user.uid;
+                    const name = eloPublicName(user);
+                    const nameB64 = b64urlEncode(name);
+                    return db.ref('stats/online').once('value').then(function (snap) {
+                        const data = snap.val() || {};
+                        let best = null;
+                        Object.keys(data).forEach(function (key) {
+                            const m = parseEloKey(key);
+                            if (!m || m.type !== 'lb' || m.uid !== uid) return;
+                            const stats = unpackElo(data[key]);
+                            const updatedAt = eloTimestamp(data, uid, m.nameB64);
+                            if (!best || updatedAt > best.updatedAt) {
+                                best = { elo: stats.elo, quizzes: stats.quizzes, best: stats.best, updatedAt: updatedAt };
+                            }
+                        });
+                        const updatedAt = Date.now() / 1000;
+                        const packed = packElo(best ? best.elo : 0, best ? best.quizzes : 0, best ? best.best : 0);
+                        return eloRef('lb', uid, nameB64).set(packed).then(function () {
+                            return writeEloTimestamp(uid, nameB64, updatedAt);
+                        }).then(function () {
+                            const removals = [];
+                            Object.keys(data).forEach(function (key) {
+                                const m = parseEloKey(key);
+                                if (m && m.uid === uid && m.nameB64 !== nameB64) {
+                                    removals.push(db.ref('stats/online/' + key).remove().catch(function () {}));
+                                }
+                            });
+                            return Promise.all(removals).then(function () {
+                                const player = {
+                                    uid: uid, name: name, nameB64: nameB64,
+                                    elo: best ? best.elo : 0,
+                                    quizzes: best ? best.quizzes : 0,
+                                    best: best ? best.best : 0,
+                                    updatedAt: updatedAt
+                                };
+                                mergeEloPlayer(player);
+                                notifyElo();
+                                return player;
+                            });
+                        });
+                    }).catch(function (err) {
+                        console.warn('ELO: профиль не создан:', err && err.message);
+                        return null;
+                    });
+                },
+                submitQuizResult: function (info) {
+                    if (!currentUser || !currentUser.uid) return Promise.resolve(null);
+                    info = info || {};
+                    const grade = Number(info.grade) || 0;
+                    const total = Number(info.total) || 0;
+                    const score = Number(info.score) || 0;
+                    const earned = Elo.earnedFor(grade, score, total);
+                    const uid = currentUser.uid;
+                    const name = eloPublicName(currentUser);
+                    const nameB64 = b64urlEncode(name);
+                    return eloRef('lb', uid, nameB64).transaction(function (cur) {
+                        const base = unpackElo(cur);
+                        return packElo(base.elo + earned, base.quizzes + 1, Math.max(base.best, total ? Math.round(score / total * 100) : 0));
+                    }).then(function (res) {
+                        const stats = unpackElo(res.snapshot.val());
+                        const updatedAt = Date.now() / 1000;
+                        writeEloTimestamp(uid, nameB64, updatedAt);
+                        const player = {
+                            uid: uid, name: name, nameB64: nameB64,
+                            elo: stats.elo, quizzes: stats.quizzes, best: stats.best,
+                            updatedAt: updatedAt
+                        };
+                        mergeEloPlayer(player);
+                        notifyElo();
+                        return { earned: earned, elo: player.elo };
+                    }).catch(function (err) {
+                        console.warn('ELO: результат не сохранён:', err && err.message);
+                        const me = Elo.getMe();
+                        return { earned: earned, elo: me ? me.elo : 0, error: true };
+                    });
+                },
+                adjust: function (uid, delta) {
+                    uid = String(uid || '');
+                    const d = Math.round(Number(delta) || 0);
+                    if (!uid || !d) return Promise.reject(new Error('Введите ненулевое значение'));
+                    const me = eloPlayers.find(function (p) { return p.uid === uid; });
+                    if (!me) return Promise.reject(new Error('Игрок не найден — пусть он зайдёт на сайт ещё раз'));
+                    const nameB64 = me.nameB64;
+                    return eloRef('lb', uid, nameB64).transaction(function (cur) {
+                        const base = unpackElo(cur);
+                        return packElo(base.elo + d, base.quizzes, base.best);
+                    }).then(function (res) {
+                        const stats = unpackElo(res.snapshot.val());
+                        const updatedAt = Date.now() / 1000;
+                        writeEloTimestamp(uid, nameB64, updatedAt);
+                        const player = {
+                            uid: uid, name: me.name, nameB64: nameB64,
+                            elo: stats.elo, quizzes: stats.quizzes, best: stats.best,
+                            updatedAt: updatedAt
+                        };
+                        mergeEloPlayer(player);
+                        notifyElo();
+                        return player;
+                    });
+                },
+                refresh: function () {
+                    return db.ref('stats/online').once('value').then(function (snap) {
+                        rebuildEloPlayers(snap.val() || {});
+                        notifyElo();
+                        return eloPlayers.slice();
+                    }).catch(function (err) {
+                        console.warn('ELO: не удалось обновить рейтинг:', err && err.message);
+                        return eloPlayers.slice();
+                    });
+                }
+            };
+            attachEloListener();
 
             // ===== Состояние =====
             let authMode = 'login';
@@ -3689,6 +4253,9 @@ Interface language: English. The whole app is now in English, so always answer t
 
                 if (currentUser) {
                     saveUserProfile(currentUser);
+                    if (window.fizaiElo && typeof window.fizaiElo.ensureProfile === 'function') {
+                        window.fizaiElo.ensureProfile(currentUser);
+                    }
                     if (previousUid !== currentUser.uid) {
                         resetChatSession();
                         attachChats(currentUser);
@@ -3699,6 +4266,7 @@ Interface language: English. The whole app is now in English, so always answer t
                     chatIndexLoaded = true;
                     renderChatsList();
                     resetChatSession();
+                    if (window.fizaiElo && typeof window.fizaiElo.refresh === 'function') window.fizaiElo.refresh();
                 }
             }
 
@@ -3812,6 +4380,7 @@ Interface language: English. The whole app is now in English, so always answer t
                     }
                     // пароль админки не настраивается пользователями
                     if (typeof saveUserProfile === 'function') saveUserProfile(currentUser);
+                    if (window.fizaiElo && typeof window.fizaiElo.ensureProfile === 'function') window.fizaiElo.ensureProfile(currentUser);
                     if (typeof refreshAdminNav === 'function') refreshAdminNav();
                     if (msg) {
                         msg.textContent = 'Сохранено.';
