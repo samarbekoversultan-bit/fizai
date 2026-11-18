@@ -5226,6 +5226,10 @@ Interface language: English. The whole app is now in English, so always answer t
                     return;
                 }
                 window.fizaiElo.setAvatar(currentUser.uid, avatarId).then(function () {
+                    try {
+                        localStorage.setItem('fizai_avatar_v1', avatarId);
+                        localStorage.setItem('fizai_avatar_uid', currentUser.uid);
+                    } catch (e) {}
                     fizaiRefreshAvatarUI();
                     openAvatarPicker();
                     avatarPickerMessage('Аватарка обновлена!', false);
@@ -5258,6 +5262,10 @@ Interface language: English. The whole app is now in English, so always answer t
                     return;
                 }
                 window.fizaiElo.setAvatarUrl(currentUser.uid, url).then(function () {
+                    try {
+                        localStorage.setItem('fizai_avatar_v1', url);
+                        localStorage.setItem('fizai_avatar_uid', currentUser.uid);
+                    } catch (e) {}
                     fizaiRefreshAvatarUI();
                     openAvatarPicker();
                     avatarPickerMessage('Аватарка по ссылке установлена!', false);
@@ -5273,6 +5281,10 @@ Interface language: English. The whole app is now in English, so always answer t
                     return;
                 }
                 window.fizaiElo.clearAvatar(currentUser.uid).then(function () {
+                    try {
+                        localStorage.removeItem('fizai_avatar_v1');
+                        localStorage.removeItem('fizai_avatar_uid');
+                    } catch (e) {}
                     fizaiRefreshAvatarUI();
                     openAvatarPicker();
                     avatarPickerMessage('Ссылка убрана.', false);
@@ -5330,6 +5342,10 @@ Interface language: English. The whole app is now in English, so always answer t
             window.clearAvatarUrlChoice = clearAvatarUrlChoice;
             window.handleAvatarFile = handleAvatarFile;
             window.clearCustomAvatarChoice = clearCustomAvatarChoice;
+            window.openAvatarPicker = openAvatarPicker;
+            window.closeAvatarPicker = closeAvatarPicker;
+            window.selectAvatarChoice = selectAvatarChoice;
+            window.clearAvatarChoice = clearAvatarChoice;
 
             window.openProfileModal = openProfileModal;
             window.closeProfileModal = closeProfileModal;
