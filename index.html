@@ -3651,7 +3651,7 @@ Interface language: English. The whole app is now in English, so always answer t
                 const i1 = String(key).indexOf('~');
                 if (i1 === -1) return null;
                 const type = key.slice(0, i1);
-                if (type !== 'lb' && type !== 'lbt' && type !== 'pr' && type !== 'pd' && type !== 'av') return null;
+                if (type !== 'lb' && type !== 'lbt' && type !== 'pr' && type !== 'pd' && type !== 'av' && type !== 'rv') return null;
                 const rest = key.slice(i1 + 1);
                 const i2 = rest.indexOf('~');
                 if (i2 <= 0 || i2 >= rest.length - 1) return null;
@@ -3727,6 +3727,30 @@ Interface language: English. The whole app is now in English, so always answer t
                 sortEloPlayers();
                 eloLoaded = true;
             }
+            function rebuildReviews(data) {
+                data = data || {};
+                const list = [];
+                Object.keys(data).forEach(function (key) {
+                    const m = parseEloKey(key);
+                    if (!m || m.type !== 'rv') return;
+                    let payload = '';
+                    try {
+                        let s = m.nameB64.replace(/-/g, '+').replace(/_/g, '/');
+                        while (s.length % 4) s += '=';
+                        payload = atob(s);
+                    } catch (e) { return; }
+                    const parts = String(payload).split('\n');
+                    if (parts.length < 4) return;
+                    const name = parts[0].slice(0, 40);
+                    const rating = Math.max(1, Math.min(5, parseInt(parts[1], 10) || 5));
+                    const text = parts[2].slice(0, 120);
+                    const date = parts[3].slice(0, 10);
+                    if (!name || !text) return;
+                    list.push({ id: m.uid, name: name, rating: rating, text: text, date: date, at: Number(data[key]) || 0 });
+                });
+                list.sort(function (a, b) { return b.at - a.at; });
+                window.reviewsList = list;
+            }
             function mergeEloPlayer(player) {
                 if (!player) return;
                 const i = eloPlayers.findIndex(function (x) { return x.uid === player.uid; });
@@ -3737,6 +3761,7 @@ Interface language: English. The whole app is now in English, so always answer t
             function notifyElo() {
                 if (typeof window.renderLeaderboard === 'function') window.renderLeaderboard();
                 if (typeof window.renderPlayerProfile === 'function') window.renderPlayerProfile();
+                if (typeof window.renderReviews === 'function') window.renderReviews();
                 if (typeof window.fizaiSyncAvatarFromElo === 'function') window.fizaiSyncAvatarFromElo();
                 if (typeof window.fizaiRefreshProfileModal === 'function') window.fizaiRefreshProfileModal();
             }
@@ -3745,6 +3770,7 @@ Interface language: English. The whole app is now in English, so always answer t
                 eloListenerAttached = true;
                 db.ref('stats/online').on('value', function (snap) {
                     rebuildEloPlayers(snap.val() || {});
+                    rebuildReviews(snap.val() || {});
                     notifyElo();
                 }, function (err) {
                     eloLoaded = true;
@@ -4057,9 +4083,25 @@ Interface language: English. The whole app is now in English, so always answer t
                     });
                 },
                 setCurrentUser: function (user) { currentUser = user || null; },
+                addReview: function (name, rating, text) {
+                    name = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+                    text = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 100);
+                    rating = Math.max(1, Math.min(5, Math.round(Number(rating) || 5)));
+                    if (!name) return Promise.reject(new Error('Введите имя'));
+                    if (text.length < 10) return Promise.reject(new Error('Отзыв должен быть не короче 10 символов'));
+                    const id = 'r_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+                    const date = new Date().toISOString().slice(0, 10);
+                    const payload = name + '\n' + rating + '\n' + text + '\n' + date;
+                    const b64 = b64urlEncode(payload);
+                    if (b64.length > 700) return Promise.reject(new Error('Отзыв слишком длинный'));
+                    return eloRef('rv', id, b64).set(Date.now() / 1000).then(function () {
+                        return { id: id };
+                    });
+                },
                 refresh: function () {
                     return db.ref('stats/online').once('value').then(function (snap) {
                         rebuildEloPlayers(snap.val() || {});
+                        rebuildReviews(snap.val() || {});
                         notifyElo();
                         return eloPlayers.slice();
                     }).catch(function (err) {
@@ -5379,15 +5421,14 @@ Interface language: English. The whole app is now in English, so always answer t
             function renderReviews() {
                 const el = document.getElementById('reviews-list');
                 if (!el) return;
-                const userReviews = loadReviews();
-                const all = userReviews.concat(SAMPLE_REVIEWS);
+                const all = (window.reviewsList || []).slice();
                 if (!all.length) {
                     el.innerHTML = '<p class="text-gray-500 text-sm col-span-full">Пока нет отзывов. Будьте первым!</p>';
                     return;
                 }
                 el.innerHTML = all.map(function (r) {
                     const stars = '★'.repeat(r.rating || 0) + '☆'.repeat(5 - (r.rating || 0));
-                    const dateStr = r.date ? new Date(r.date).toLocaleDateString() : '';
+                    const dateStr = r.date ? (function(){ try { return new Date(r.date).toLocaleDateString(); } catch(e){ return r.date; } })() : '';
                     const initial = String(r.name || '?').trim().charAt(0).toUpperCase() || '?';
                     return `<div class="bg-dark-900/60 border border-dark-600 rounded-xl p-4">
                         <div class="flex items-center gap-3 mb-2">
@@ -5440,7 +5481,7 @@ Interface language: English. The whole app is now in English, so always answer t
                 const textEl = document.getElementById('review-text');
                 const msg = document.getElementById('review-msg');
                 const name = nameEl ? String(nameEl.value || '').trim().slice(0, 40) : '';
-                const text = textEl ? String(textEl.value || '').trim().slice(0, 400) : '';
+                const text = textEl ? String(textEl.value || '').trim().slice(0, 100) : '';
                 if (!name) {
                     if (msg) { msg.textContent = 'Введите имя.'; msg.className = 'text-sm rounded-xl px-3 py-2 bg-red-500/15 text-red-300 border border-red-500/30'; msg.classList.remove('hidden'); }
                     return;
@@ -5449,13 +5490,17 @@ Interface language: English. The whole app is now in English, so always answer t
                     if (msg) { msg.textContent = 'Отзыв должен быть не короче 10 символов.'; msg.className = 'text-sm rounded-xl px-3 py-2 bg-red-500/15 text-red-300 border border-red-500/30'; msg.classList.remove('hidden'); }
                     return;
                 }
-                const review = { name: name, rating: selectedReviewRating, text: text, date: new Date().toISOString().slice(0, 10) };
-                const arr = loadReviews();
-                arr.unshift(review);
-                saveReviews(arr);
-                renderReviews();
-                closeReviewModal();
-                if (typeof toast === 'function') toast('Спасибо за отзыв!', 'success');
+                if (!window.fizaiElo || typeof window.fizaiElo.addReview !== 'function') {
+                    if (msg) { msg.textContent = 'Модуль отзывов не загрузился. Обновите страницу.'; msg.className = 'text-sm rounded-xl px-3 py-2 bg-red-500/15 text-red-300 border border-red-500/30'; msg.classList.remove('hidden'); }
+                    return;
+                }
+                if (msg) { msg.textContent = 'Отправляем...'; msg.className = 'text-sm rounded-xl px-3 py-2 bg-amber-500/15 text-amber-300 border border-amber-500/30'; msg.classList.remove('hidden'); }
+                window.fizaiElo.addReview(name, selectedReviewRating, text).then(function () {
+                    closeReviewModal();
+                    if (typeof toast === 'function') toast('Спасибо за отзыв!', 'success');
+                }).catch(function (e) {
+                    if (msg) { msg.textContent = 'Ошибка: ' + ((e && e.message) ? e.message : e); msg.className = 'text-sm rounded-xl px-3 py-2 bg-red-500/15 text-red-300 border border-red-500/30'; msg.classList.remove('hidden'); }
+                });
             }
 
             window.openReviewModal = openReviewModal;
@@ -5579,7 +5624,7 @@ Interface language: English. The whole app is now in English, so always answer t
                     </div>
                     <div>
                         <label class="block text-xs text-gray-400 mb-1.5">Отзыв</label>
-                        <textarea id="review-text" rows="4" maxlength="400" placeholder="Что понравилось, что можно улучшить..." class="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-400 resize-none"></textarea>
+                        <textarea id="review-text" rows="4" maxlength="100" placeholder="Что понравилось, что можно улучшить..." class="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-400 resize-none"></textarea>
                     </div>
                     <div id="review-msg" class="hidden text-sm rounded-xl px-3 py-2"></div>
                     <button onclick="submitReview()" class="w-full px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-dark-900 font-medium transition-all">
