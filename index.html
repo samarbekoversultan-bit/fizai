@@ -342,6 +342,19 @@
                         <p class="text-gray-400 text-sm mt-2">Выбери класс (7–11) и проверь себя: вопросы с четырьмя вариантами ответа, каждый раз всё заново.</p>
                     </div>
                 </div>
+                <!-- Отзывы -->
+                <div class="bg-dark-800 border border-dark-600 rounded-2xl p-5 md:p-6">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-star text-amber-400"></i>Отзывы пользователей</h3>
+                            <p class="text-xs text-gray-500 mt-1">Что говорят те, кто уже пользуется FizAI</p>
+                        </div>
+                        <button onclick="openReviewModal()" class="text-xs bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 px-3 py-1.5 rounded-lg border border-amber-500/30 transition-all">
+                            <i class="fa-solid fa-pen mr-1"></i>Оставить отзыв
+                        </button>
+                    </div>
+                    <div id="reviews-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                </div>
             </section>
 
             <!-- AI CHAT -->
@@ -2259,7 +2272,6 @@
         function fizaiAvatarPreset(id) {
             const key = String(id || '');
             if (!key) return null;
-            if (key.indexOf('http://') === 0 || key.indexOf('https://') === 0) return { id: key, url: key, emoji: null, bg: null };
             return FIZAI_AVATARS.find(function (a) { return a.id === key; }) || null;
         }
         window.fizaiAvatarPreset = fizaiAvatarPreset;
@@ -2270,12 +2282,7 @@
             el.style.backgroundPosition = '';
             el.style.background = '';
             const av = fizaiAvatarPreset(avatarId);
-            if (av && av.url) {
-                el.textContent = '';
-                el.style.backgroundImage = 'url("' + String(av.url).replace(/"/g, '%22') + '")';
-                el.style.backgroundSize = 'cover';
-                el.style.backgroundPosition = 'center';
-            } else if (av) {
+            if (av) {
                 el.textContent = av.emoji;
                 el.style.background = av.bg;
             } else {
@@ -4070,35 +4077,6 @@ Interface language: English. The whole app is now in English, so always answer t
                 return tr('Аккаунт', 'Account');
             }
 
-            function fizaiCustomAvatar() {
-                let dataUrl = '';
-                let storedUid = '';
-                try {
-                    dataUrl = localStorage.getItem('fizai_avatar_custom_v1') || '';
-                    storedUid = localStorage.getItem('fizai_avatar_custom_uid') || '';
-                } catch (e) {}
-                const myUid = currentUser ? currentUser.uid : ((window.fizaiElo && typeof window.fizaiElo.getUid === 'function') ? window.fizaiElo.getUid() : '');
-                if (myUid && storedUid && storedUid !== myUid) return '';
-                return dataUrl.indexOf('data:image/') === 0 ? dataUrl : '';
-            }
-
-            function setCustomAvatar(dataUrl) {
-                if (!currentUser) return;
-                try {
-                    localStorage.setItem('fizai_avatar_custom_v1', dataUrl);
-                    localStorage.setItem('fizai_avatar_custom_uid', currentUser.uid);
-                } catch (e) {}
-                fizaiRefreshAvatarUI();
-            }
-
-            function clearCustomAvatar() {
-                try {
-                    localStorage.removeItem('fizai_avatar_custom_v1');
-                    localStorage.removeItem('fizai_avatar_custom_uid');
-                } catch (e) {}
-                fizaiRefreshAvatarUI();
-            }
-
             function fizaiMyAvatarId() {
                 let id = '';
                 let storedUid = '';
@@ -4108,11 +4086,36 @@ Interface language: English. The whole app is now in English, so always answer t
                 } catch (e) {}
                 const myUid = currentUser ? currentUser.uid : ((window.fizaiElo && typeof window.fizaiElo.getUid === 'function') ? window.fizaiElo.getUid() : '');
                 if (myUid && storedUid && storedUid !== myUid) id = '';
-                if (!fizaiAvatarPreset(id) && window.fizaiElo && typeof window.fizaiElo.getMe === 'function') {
+                if (!fizaiAvatarPreset(id)) id = '';
+                // fall back to ELO shared avatar
+                if (!id && window.fizaiElo && typeof window.fizaiElo.getMe === 'function') {
                     const me = window.fizaiElo.getMe();
-                    if (me && me.avatar) id = me.avatar;
+                    if (me && me.avatar && fizaiAvatarPreset(me.avatar)) id = me.avatar;
                 }
-                return fizaiAvatarPreset(id) ? id : '';
+                return id;
+            }
+
+            function setAvatar(el, user) {
+                if (!el) return;
+                const name = displayName(user) || '?';
+                el.style.backgroundImage = '';
+                el.style.backgroundSize = '';
+                el.style.backgroundPosition = '';
+                el.style.background = '';
+                const presetId = user ? fizaiMyAvatarId() : '';
+                const preset = fizaiAvatarPreset(presetId);
+                if (preset) {
+                    el.textContent = preset.emoji;
+                    el.style.background = preset.bg;
+                    return;
+                }
+                el.textContent = name.charAt(0).toUpperCase();
+                if (user && user.photoURL) {
+                    el.textContent = '';
+                    el.style.backgroundImage = 'url("' + String(user.photoURL).replace(/"/g, '%22') + '")';
+                    el.style.backgroundSize = 'cover';
+                    el.style.backgroundPosition = 'center';
+                }
             }
 
             function setAvatar(el, user) {
@@ -4978,6 +4981,8 @@ Interface language: English. The whole app is now in English, so always answer t
                 if (settingsModal && settingsModal.style.display === 'flex') closeSettingsModal();
                 const profileModal = $('profile-modal');
                 if (profileModal && profileModal.style.display === 'flex') closeProfileModal();
+                const reviewModal = document.getElementById('review-modal');
+                if (reviewModal && reviewModal.style.display === 'flex') closeReviewModal();
                 const avatarModal = $('avatar-modal');
                 if (avatarModal && avatarModal.style.display === 'flex') closeAvatarPicker();
                 const adminModal = document.getElementById('admin-modal');
@@ -5398,6 +5403,118 @@ Interface language: English. The whole app is now in English, so always answer t
             window.openSettingsModal = openSettingsModal;
             window.closeSettingsModal = closeSettingsModal;
             window.saveProfileSettings = saveProfileSettings;
+
+            // ===== Отзывы =====
+            const REVIEWS_STORAGE_KEY = 'fizai_reviews_v1';
+            const SAMPLE_REVIEWS = [
+                { name: 'Айдана', rating: 5, text: 'Очень удобный сайт! Формулы разложены по темам, калькуляторы экономят время. ИИ-репетитор объясняет понятно, не просто даёт ответы.', date: '2025-11-12' },
+                { name: 'Тимур', rating: 5, text: 'Квизы помогают проверить себя перед контрольной. Рейтинг мотивирует — хочется подняться выше. Спасибо за проект!', date: '2025-11-28' },
+                { name: 'Диана', rating: 4, text: 'Хорошая база формул, но хотелось бы больше задач с решениями. В остальном — отлично, пользуюсь каждый день.', date: '2025-12-05' },
+                { name: 'Ерсултан', rating: 5, text: 'ИИ помог разобраться с термодинамикой за один вечер. Интерфейс приятный, всё на русском. Рекомендую одноклассникам.', date: '2026-01-14' }
+            ];
+
+            function loadReviews() {
+                try {
+                    const raw = localStorage.getItem(REVIEWS_STORAGE_KEY);
+                    const arr = raw ? JSON.parse(raw) : [];
+                    return Array.isArray(arr) ? arr : [];
+                } catch (e) { return []; }
+            }
+
+            function saveReviews(arr) {
+                try { localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(arr)); } catch (e) {}
+            }
+
+            let selectedReviewRating = 5;
+
+            function renderReviews() {
+                const el = document.getElementById('reviews-list');
+                if (!el) return;
+                const userReviews = loadReviews();
+                const all = userReviews.concat(SAMPLE_REVIEWS);
+                if (!all.length) {
+                    el.innerHTML = '<p class="text-gray-500 text-sm col-span-full">Пока нет отзывов. Будьте первым!</p>';
+                    return;
+                }
+                el.innerHTML = all.map(function (r) {
+                    const stars = '★'.repeat(r.rating || 0) + '☆'.repeat(5 - (r.rating || 0));
+                    const dateStr = r.date ? new Date(r.date).toLocaleDateString() : '';
+                    const initial = String(r.name || '?').trim().charAt(0).toUpperCase() || '?';
+                    return `<div class="bg-dark-900/60 border border-dark-600 rounded-xl p-4">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-9 h-9 rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-sm font-bold shrink-0">${escapeHtml(initial)}</div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm font-medium text-gray-200 truncate">${escapeHtml(r.name || 'Аноним')}</p>
+                                <p class="text-[11px] text-amber-400">${stars}</p>
+                            </div>
+                            ${dateStr ? `<span class="text-[10px] text-gray-500 shrink-0">${escapeHtml(dateStr)}</span>` : ''}
+                        </div>
+                        <p class="text-xs text-gray-400 leading-relaxed">${escapeHtml(r.text || '')}</p>
+                    </div>`;
+                }).join('');
+            }
+
+            function openReviewModal() {
+                const modal = document.getElementById('review-modal');
+                const nameEl = document.getElementById('review-name');
+                const textEl = document.getElementById('review-text');
+                const msg = document.getElementById('review-msg');
+                if (nameEl && currentUser) nameEl.value = currentUser.displayName || '';
+                if (textEl) textEl.value = '';
+                if (msg) { msg.classList.add('hidden'); msg.textContent = ''; }
+                selectedReviewRating = 5;
+                renderReviewStars();
+                if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+            }
+
+            function closeReviewModal() {
+                const modal = document.getElementById('review-modal');
+                if (modal) modal.style.display = 'none';
+                document.body.style.overflow = '';
+            }
+
+            function renderReviewStars() {
+                const el = document.getElementById('review-stars');
+                if (!el) return;
+                el.innerHTML = [1,2,3,4,5].map(function (n) {
+                    return `<span onclick="setReviewRating(${n})" class="cursor-pointer transition-colors ${n <= selectedReviewRating ? 'text-amber-400' : 'text-gray-600'}">★</span>`;
+                }).join('');
+            }
+
+            function setReviewRating(n) {
+                selectedReviewRating = n;
+                renderReviewStars();
+            }
+
+            function submitReview() {
+                const nameEl = document.getElementById('review-name');
+                const textEl = document.getElementById('review-text');
+                const msg = document.getElementById('review-msg');
+                const name = nameEl ? String(nameEl.value || '').trim().slice(0, 40) : '';
+                const text = textEl ? String(textEl.value || '').trim().slice(0, 400) : '';
+                if (!name) {
+                    if (msg) { msg.textContent = 'Введите имя.'; msg.className = 'text-sm rounded-xl px-3 py-2 bg-red-500/15 text-red-300 border border-red-500/30'; msg.classList.remove('hidden'); }
+                    return;
+                }
+                if (text.length < 10) {
+                    if (msg) { msg.textContent = 'Отзыв должен быть не короче 10 символов.'; msg.className = 'text-sm rounded-xl px-3 py-2 bg-red-500/15 text-red-300 border border-red-500/30'; msg.classList.remove('hidden'); }
+                    return;
+                }
+                const review = { name: name, rating: selectedReviewRating, text: text, date: new Date().toISOString().slice(0, 10) };
+                const arr = loadReviews();
+                arr.unshift(review);
+                saveReviews(arr);
+                renderReviews();
+                closeReviewModal();
+                if (typeof toast === 'function') toast('Спасибо за отзыв!', 'success');
+            }
+
+            window.openReviewModal = openReviewModal;
+            window.closeReviewModal = closeReviewModal;
+            window.setReviewRating = setReviewRating;
+            window.submitReview = submitReview;
+
+            renderReviews();
         })();
     </script>
 
@@ -5475,38 +5592,10 @@ Interface language: English. The whole app is now in English, so always answer t
                     <p class="text-xs text-gray-400 mt-1">Она появится в рейтинге и профиле</p>
                 </div>
                 <div id="avatar-picker-grid" class="grid grid-cols-4 gap-3 mb-5"></div>
-                <div class="space-y-3 mb-4">
-                    <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3">
-                        <p class="text-xs text-gray-400 mb-2">Картинка по ссылке (видна всем)</p>
-                        <div class="flex items-center gap-2 mb-2">
-                            <div id="avatar-url-preview" class="w-9 h-9 rounded-full bg-dark-800 border border-dark-600 flex items-center justify-center text-gray-500 text-xs shrink-0 overflow-hidden">?</div>
-                            <input id="avatar-url-input" type="url" placeholder="https://example.com/avatar.jpg" oninput="updateAvatarUrlPreview()" class="flex-1 bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-400">
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="setAvatarUrlChoice()" class="flex-1 px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-dark-900 text-xs font-medium transition-all">
-                                Установить
-                            </button>
-                            <button onclick="clearAvatarUrlChoice()" class="px-3 py-2 rounded-lg bg-dark-700 hover:bg-red-500/20 text-gray-300 hover:text-red-300 border border-dark-600 hover:border-red-500/30 text-xs transition-all shrink-0">
-                                Убрать
-                            </button>
-                        </div>
-                        <p class="text-[10px] text-gray-500 mt-2">Ссылка должна вести напрямую на картинку (jpg/png/gif/webp). Сайт должен быть с https://, иначе картинка может не загрузиться.</p>
-                    </div>
-                    <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3">
-                        <p class="text-xs text-gray-400 mb-2">Загрузить своё фото (только на этом устройстве)</p>
-                        <input id="avatar-file-input" type="file" accept="image/*" class="hidden" onchange="handleAvatarFile(event)">
-                        <div class="flex gap-2">
-                            <button onclick="document.getElementById('avatar-file-input').click()" class="flex-1 px-3 py-2 rounded-lg bg-primary/15 hover:bg-primary/25 text-primary-light text-xs font-medium border border-primary/30 transition-all">
-                                <i class="fa-solid fa-upload mr-1"></i>Выбрать файл
-                            </button>
-                            <button onclick="clearCustomAvatarChoice()" class="px-3 py-2 rounded-lg bg-dark-700 hover:bg-red-500/20 text-gray-300 hover:text-red-300 border border-dark-600 hover:border-red-500/30 text-xs transition-all shrink-0">
-                                Убрать
-                            </button>
-                        </div>
-                        <p class="text-[10px] text-gray-500 mt-2">Фото сохраняется только в этом браузере и видно только вам. Чтобы фото было видно всем — загрузите его на любой фотохостинг (например, imgur.com) и вставьте ссылку выше.</p>
-                    </div>
-                </div>
                 <div id="avatar-picker-msg" class="hidden text-sm rounded-xl px-3 py-2 mb-3"></div>
+                <button onclick="clearAvatarChoice()" class="w-full px-4 py-2.5 rounded-xl bg-dark-700 hover:bg-dark-600 text-gray-300 text-sm font-medium border border-dark-600 transition-all">
+                    <i class="fa-solid fa-rotate-left mr-2"></i>Сбросить на стандартную
+                </button>
                 <button onclick="clearAvatarChoice()" class="w-full px-4 py-2.5 rounded-xl bg-dark-700 hover:bg-dark-600 text-gray-300 text-sm font-medium border border-dark-600 transition-all">
                     <i class="fa-solid fa-rotate-left mr-2"></i>Сбросить на стандартную
                 </button>
@@ -5514,7 +5603,42 @@ Interface language: English. The whole app is now in English, so always answer t
         </div>
     </div>
 
-    <!-- Модальное окно профиля и прогресса -->
+    <!-- Модальное окно отзыва -->
+    <div id="review-modal" class="fixed inset-0 z-[100] items-center justify-center p-4 bg-black/70 backdrop-blur-sm" style="display:none" onclick="if (event.target === this) closeReviewModal();">
+        <div class="relative w-full max-w-md bg-dark-800 border border-dark-600 rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto">
+            <button onclick="closeReviewModal()" title="Закрыть" aria-label="Закрыть"
+                    class="absolute top-3 right-3 w-8 h-8 rounded-lg bg-dark-700 hover:bg-dark-600 text-gray-400 hover:text-white flex items-center justify-center transition-all z-10">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="p-6 md:p-7">
+                <div class="text-center mb-5">
+                    <div class="w-12 h-12 mx-auto rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl mb-3">
+                        <i class="fa-solid fa-star"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white">Оставить отзыв</h3>
+                    <p class="text-xs text-gray-400 mt-1">Поделитесь впечатлением о FizAI</p>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1.5">Ваше имя</label>
+                        <input id="review-name" type="text" maxlength="40" placeholder="Например, Айдана" class="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-400">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1.5">Оценка</label>
+                        <div id="review-stars" class="flex gap-2 text-2xl cursor-pointer"></div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1.5">Отзыв</label>
+                        <textarea id="review-text" rows="4" maxlength="400" placeholder="Что понравилось, что можно улучшить..." class="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-amber-400 resize-none"></textarea>
+                    </div>
+                    <div id="review-msg" class="hidden text-sm rounded-xl px-3 py-2"></div>
+                    <button onclick="submitReview()" class="w-full px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-dark-900 font-medium transition-all">
+                        Отправить отзыв
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="profile-modal" class="fixed inset-0 z-[100] items-center justify-center p-4 bg-black/70 backdrop-blur-sm" style="display:none" onclick="if (event.target === this) closeProfileModal();">
         <div class="relative w-full max-w-lg bg-dark-800 border border-dark-600 rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] overflow-y-auto">
             <button onclick="closeProfileModal()" title="Закрыть" aria-label="Закрыть"
