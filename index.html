@@ -123,6 +123,10 @@
                     <span>Квизы</span>
                     <span class="ml-auto text-[10px] bg-accent text-white px-1.5 py-0.5 rounded-full font-bold not-italic">NEW</span>
                 </button>
+                <button onclick="switchTab('stats')" id="nav-stats" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-gray-400 hover:bg-dark-700 hover:text-gray-200">
+                    <i class="fa-solid fa-chart-simple w-5"></i>
+                    <span>Статистика</span>
+                </button>
                 <button onclick="openAdminPanel()" id="nav-admin" class="nav-btn hidden w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-amber-400 hover:bg-amber-500/10 hover:text-amber-300">
                     <i class="fa-solid fa-shield-halved w-5"></i>
                     <span>Админ-панель</span>
@@ -511,10 +515,34 @@
                         <h3 class="text-xl md:text-2xl font-bold text-white">Квизы по физике</h3>
                         <p class="text-gray-400 text-sm">Выбери класс (7–11), а дальше отвечай на вопросы по его программе: четыре варианта ответа, каждый раз всё заново</p>
                     </div>
-                    <span class="text-xs bg-accent/20 text-accent px-3 py-1 rounded-full border border-accent/30 self-start md:self-auto">✨ Новое</span>
+                    <div class="flex items-center gap-2 self-start md:self-auto">
+                        <button onclick="switchTab('stats')" class="text-xs bg-primary/20 hover:bg-primary/30 text-primary-light px-3 py-1.5 rounded-full border border-primary/30 transition-all">
+                            <i class="fa-solid fa-chart-simple mr-1"></i>Моя статистика
+                        </button>
+                        <span class="text-xs bg-accent/20 text-accent px-3 py-1 rounded-full border border-accent/30">✨ Новое</span>
+                    </div>
                 </div>
 
                 <div id="quiz-card"></div>
+            </section>
+
+            <!-- STATS -->
+            <section id="view-stats" class="tab-content hidden max-w-4xl mx-auto space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-xl md:text-2xl font-bold text-white">Статистика квизов</h3>
+                        <p class="text-gray-400 text-sm">Твой прогресс: результаты по классам и последние попытки</p>
+                    </div>
+                    <div class="flex items-center gap-2 self-start md:self-auto">
+                        <button onclick="switchTab('quizzes')" class="text-xs bg-primary/20 hover:bg-primary/30 text-primary-light px-3 py-1.5 rounded-lg border border-primary/30 transition-all">
+                            <i class="fa-solid fa-play mr-1"></i>Пройти квиз
+                        </button>
+                        <button onclick="resetQuizStats()" id="stats-reset-btn" class="text-xs bg-dark-700 hover:bg-red-500/20 text-gray-400 hover:text-red-300 px-3 py-1.5 rounded-lg border border-dark-600 hover:border-red-500/30 transition-all">
+                            <i class="fa-solid fa-trash-can mr-1"></i>Сбросить
+                        </button>
+                    </div>
+                </div>
+                <div id="stats-content"></div>
             </section>
 
             <!-- ADMIN PANEL -->
@@ -628,6 +656,7 @@
             formulas: ['Справочник формул', 'Formula Reference', 'Формулалар анықтамасы'],
             calculators: ['Интерактивные калькуляторы', 'Interactive Calculators', 'Интерактивті калькуляторлар'],
             quizzes: ['Квизы по физике', 'Physics Quizzes', 'Физика квиздері'],
+            stats: ['Статистика квизов', 'Quiz Statistics', 'Квиз статистикасы'],
             admin: ['Админ-панель', 'Admin Panel', 'Әкімші панелі']
         };
 
@@ -898,6 +927,7 @@
             if (typeof filterFormulas === 'function') filterFormulas();
             if (typeof filterCalculators === 'function') filterCalculators();
             if (typeof renderQuiz === 'function') renderQuiz();
+            if (typeof renderQuizStats === 'function') renderQuizStats();
             const chat = document.getElementById('chat-container');
             if (chat && chat.dataset.greeting === '1') chat.innerHTML = typeof welcomeHTML === 'function' ? welcomeHTML() : greetingHTML();
             if (chat && chat.dataset.greeting === 'cleared') chat.innerHTML = clearedHTML();
@@ -1046,13 +1076,14 @@
 
         window.switchTab = function(tabId) {
             // Закрытые разделы доступны только после входа в аккаунт
-            var PROTECTED_TABS = ['ai', 'quizzes', 'calculators', 'formulas', 'admin'];
+            var PROTECTED_TABS = ['ai', 'quizzes', 'stats', 'calculators', 'formulas', 'admin'];
             if (PROTECTED_TABS.indexOf(tabId) !== -1 && !(window.fizaiAuth && window.fizaiAuth.isSignedIn())) {
                 if (typeof window.openAuthModal === 'function') window.openAuthModal('login');
                 return;
             }
             var prevTab = currentTab;
             currentTab = tabId;
+            if (tabId === 'stats' && typeof window.renderQuizStats === 'function') window.renderQuizStats();
             if (tabId === 'ai') {
                 warmUpAI();
                 if (prevTab !== 'ai' && typeof window.resetChatSession === 'function') window.resetChatSession();
@@ -1717,6 +1748,7 @@
                         <div class="flex flex-wrap items-center justify-center gap-3">
                             <button onclick="restartQuiz()" class="px-6 py-3 bg-primary hover:bg-primary-hover text-white font-medium rounded-xl transition-all">${pick('Играть снова', 'Play again')}</button>
                             <button onclick="changeQuizGrade()" class="px-6 py-3 bg-dark-700 hover:bg-dark-600 text-gray-200 font-medium rounded-xl border border-dark-600 transition-all">${pick('Сменить класс', 'Change grade')}</button>
+                            <button onclick="switchTab('stats')" class="px-6 py-3 bg-dark-700 hover:bg-dark-600 text-gray-200 font-medium rounded-xl border border-dark-600 transition-all flex items-center gap-2"><i class="fa-solid fa-chart-simple"></i><span>${pick('Моя статистика', 'My statistics')}</span></button>
                             ${quizWrong.length ? `<button onclick="askTutorAboutQuiz()" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl transition-all flex items-center gap-2"><i class="fa-solid fa-robot"></i><span>${pick('Спросить у репетитора', 'Ask the tutor')}</span></button>` : ''}
                         </div>
                     </div>`;
@@ -1923,6 +1955,195 @@
         }
         window.loadQuizProgress = loadQuizProgress;
         window.saveQuizProgress = saveQuizProgress;
+
+        // ===== Страница статистики квизов =====
+        function quizDayKey(d) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+        function quizDayStreak(arr) {
+            const days = {};
+            arr.forEach(function (p) {
+                if (!p || !p.date) return;
+                const d = new Date(p.date);
+                if (!isNaN(d.getTime())) days[quizDayKey(d)] = true;
+            });
+            const cur = new Date();
+            if (!days[quizDayKey(cur)]) cur.setDate(cur.getDate() - 1); // серия ещё жива, если занимались вчера
+            let streak = 0;
+            while (days[quizDayKey(cur)] && streak < 3650) { streak++; cur.setDate(cur.getDate() - 1); }
+            return streak;
+        }
+        function pluralDays(n) {
+            const a = Math.abs(n) % 100, b = a % 10;
+            if (a > 10 && a < 20) return 'дней';
+            if (b > 1 && b < 5) return 'дня';
+            if (b === 1) return 'день';
+            return 'дней';
+        }
+        function pluralAttempts(n) {
+            const a = Math.abs(n) % 100, b = a % 10;
+            if (a > 10 && a < 20) return 'попыток';
+            if (b > 1 && b < 5) return 'попытки';
+            if (b === 1) return 'попытка';
+            return 'попыток';
+        }
+        function quizPctColor(pct) {
+            if (pct >= 80) return { text: 'text-emerald-400', bg: 'bg-emerald-500/15', bar: 'from-emerald-500 to-emerald-400' };
+            if (pct >= 50) return { text: 'text-primary-light', bg: 'bg-primary/15', bar: 'from-primary to-accent' };
+            return { text: 'text-rose-400', bg: 'bg-rose-500/15', bar: 'from-rose-500 to-orange-400' };
+        }
+
+        function renderQuizStats() {
+            const el = document.getElementById('stats-content');
+            if (!el) return;
+            const arr = loadQuizProgress();
+
+            if (!arr.length) {
+                el.innerHTML = `
+                    <div class="bg-dark-800 border border-dark-600 rounded-2xl p-8 md:p-12 text-center space-y-4">
+                        <div class="w-16 h-16 mx-auto rounded-full bg-primary/15 text-primary-light flex items-center justify-center text-2xl">
+                            <i class="fa-solid fa-chart-simple"></i>
+                        </div>
+                        <h4 class="text-xl font-bold text-white">${pick('Пока нет статистики', 'No statistics yet')}</h4>
+                        <p class="text-sm text-gray-400 max-w-sm mx-auto">${pick('Пройди первый квиз — здесь появятся результаты, средний балл и прогресс по классам.', 'Take your first quiz — results, average score and progress by grade will appear here.')}</p>
+                        <button onclick="switchTab('quizzes')" class="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary-hover text-white font-medium rounded-xl transition-all">
+                            <i class="fa-solid fa-play"></i>
+                            <span>${pick('Пройти квиз', 'Take a quiz')}</span>
+                        </button>
+                    </div>`;
+                return;
+            }
+
+            const attempts = arr.length;
+            const totalScore = arr.reduce(function (s, p) { return s + (Number(p.score) || 0); }, 0);
+            const totalQuestions = arr.reduce(function (s, p) { return s + (Number(p.total) || 0); }, 0);
+            const avg = totalQuestions ? Math.round((totalScore / totalQuestions) * 100) : 0;
+            const best = Math.round(Math.max.apply(null, arr.map(function (p) {
+                return p.total ? (Number(p.score) || 0) / Number(p.total) * 100 : 0;
+            })));
+            const streak = quizDayStreak(arr);
+
+            const byGrade = {};
+            arr.forEach(function (p) {
+                const g = Number(p.grade) || 0;
+                if (!byGrade[g]) byGrade[g] = { score: 0, total: 0, n: 0, best: 0 };
+                byGrade[g].score += Number(p.score) || 0;
+                byGrade[g].total += Number(p.total) || 0;
+                byGrade[g].n++;
+                const pct = p.total ? Math.round((Number(p.score) || 0) / Number(p.total) * 100) : 0;
+                if (pct > byGrade[g].best) byGrade[g].best = pct;
+            });
+
+            const gradeRows = QUIZ_GRADES.map(function (g) {
+                const d = byGrade[g];
+                if (!d) {
+                    return `
+                        <div class="opacity-50">
+                            <div class="flex items-center justify-between text-sm mb-1.5">
+                                <span class="text-gray-300 font-medium">${pick(g + ' класс', 'Grade ' + g)}</span>
+                                <span class="text-gray-500">${pick('нет попыток', 'no attempts')}</span>
+                            </div>
+                            <div class="w-full bg-dark-900 rounded-full h-2.5 overflow-hidden">
+                                <div class="h-2.5 rounded-full bg-dark-600" style="width:0%"></div>
+                            </div>
+                        </div>`;
+                }
+                const pct = d.total ? Math.round((d.score / d.total) * 100) : 0;
+                const c = quizPctColor(pct);
+                return `
+                    <div>
+                        <div class="flex items-center justify-between text-sm mb-1.5">
+                            <span class="text-gray-200 font-medium">${pick(g + ' класс', 'Grade ' + g)}</span>
+                            <span class="text-gray-400"><span class="${c.text} font-semibold">${pct}%</span> · ${d.n} ${pick(pluralAttempts(d.n), d.n === 1 ? 'attempt' : 'attempts')}</span>
+                        </div>
+                        <div class="w-full bg-dark-900 rounded-full h-2.5 overflow-hidden">
+                            <div class="h-2.5 rounded-full bg-gradient-to-r ${c.bar} transition-all" style="width:${pct}%"></div>
+                        </div>
+                        <p class="text-[11px] text-gray-500 mt-1">${pick('Лучший', 'Best')}: ${d.best}% · ${pick('правильных', 'correct')}: ${d.score} / ${d.total}</p>
+                    </div>`;
+            }).join('');
+
+            const recent = arr.slice().sort(function (a, b) { return (b.date || 0) - (a.date || 0); }).slice(0, 10);
+            const recentRows = recent.map(function (p) {
+                const total = Number(p.total) || 0;
+                const score = Number(p.score) || 0;
+                const pct = total ? Math.round(score / total * 100) : 0;
+                const c = quizPctColor(pct);
+                let dateStr = '';
+                try {
+                    const d = new Date(p.date);
+                    if (!isNaN(d.getTime())) dateStr = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ', ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                } catch (e) {}
+                const wrong = Number(p.wrong) || 0;
+                return `
+                    <div class="flex items-center justify-between gap-3 bg-dark-900/60 border border-dark-600 rounded-xl px-3 py-2.5">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="w-10 h-10 rounded-lg ${c.bg} ${c.text} flex items-center justify-center text-[11px] font-bold shrink-0">${pct}%</span>
+                            <div class="min-w-0">
+                                <p class="text-sm text-gray-200">${p.grade} ${pick('класс', 'grade')}</p>
+                                <p class="text-[11px] text-gray-500 truncate">${dateStr}${wrong ? ' · ' + pick('ошибок', 'mistakes') + ': ' + wrong : ' · ' + pick('без ошибок', 'no mistakes')}</p>
+                            </div>
+                        </div>
+                        <span class="text-sm font-semibold ${c.text} shrink-0">${score}/${total}</span>
+                    </div>`;
+            }).join('');
+
+            el.innerHTML = `
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 text-center">
+                        <p class="text-2xl md:text-3xl font-extrabold text-primary-light">${attempts}</p>
+                        <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-1">${pick('Попыток', 'Attempts')}</p>
+                    </div>
+                    <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 text-center">
+                        <p class="text-2xl md:text-3xl font-extrabold text-accent">${avg}%</p>
+                        <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-1">${pick('Средний результат', 'Average')}</p>
+                    </div>
+                    <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 text-center">
+                        <p class="text-2xl md:text-3xl font-extrabold text-emerald-400">${best}%</p>
+                        <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-1">${pick('Лучший результат', 'Best score')}</p>
+                    </div>
+                    <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 text-center">
+                        <p class="text-2xl md:text-3xl font-extrabold text-white">${totalScore}<span class="text-sm text-gray-500 font-medium"> / ${totalQuestions}</span></p>
+                        <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-1">${pick('Правильных ответов', 'Correct answers')}</p>
+                    </div>
+                </div>
+
+                <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 md:p-6 mt-6">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                        <h4 class="font-semibold text-gray-200">${pick('Результаты по классам', 'Results by grade')}</h4>
+                        ${streak > 0 ? `<span class="text-xs bg-orange-500/15 text-orange-300 border border-orange-500/30 px-2.5 py-1 rounded-full">🔥 ${streak} ${pick(pluralDays(streak), streak === 1 ? 'day' : 'days')} ${pick('подряд', 'in a row')}</span>` : ''}
+                    </div>
+                    <div class="space-y-4">${gradeRows}</div>
+                </div>
+
+                <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 md:p-6 mt-6">
+                    <h4 class="font-semibold text-gray-200 mb-4">${pick('Последние попытки', 'Recent attempts')}</h4>
+                    <div class="space-y-2">${recentRows}</div>
+                </div>`;
+        }
+        window.renderQuizStats = renderQuizStats;
+
+        let statsResetTimer = null;
+        window.resetQuizStats = function () {
+            const btn = document.getElementById('stats-reset-btn');
+            const restore = function () {
+                if (!btn) return;
+                btn.dataset.armed = '0';
+                btn.innerHTML = '<i class="fa-solid fa-trash-can mr-1"></i>Сбросить';
+                btn.classList.remove('text-red-300', 'border-red-500/40');
+            };
+            if (btn && btn.dataset.armed !== '1') {
+                btn.dataset.armed = '1';
+                btn.innerHTML = '<i class="fa-solid fa-trash-can mr-1"></i>Точно сбросить?';
+                btn.classList.add('text-red-300', 'border-red-500/40');
+                clearTimeout(statsResetTimer);
+                statsResetTimer = setTimeout(restore, 4000);
+                return;
+            }
+            try { localStorage.removeItem(QUIZ_PROGRESS_KEY); } catch (e) {}
+            clearTimeout(statsResetTimer);
+            restore();
+            renderQuizStats();
+        };
+
 
         window.askTutorAboutQuiz = function() {
             if (!quizWrong.length) return;
