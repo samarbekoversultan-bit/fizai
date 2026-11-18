@@ -2259,19 +2259,27 @@
         function fizaiAvatarPreset(id) {
             const key = String(id || '');
             if (!key) return null;
+            if (key.indexOf('http://') === 0 || key.indexOf('https://') === 0) return { id: key, url: key, emoji: null, bg: null };
             return FIZAI_AVATARS.find(function (a) { return a.id === key; }) || null;
         }
         window.fizaiAvatarPreset = fizaiAvatarPreset;
         window.fizaiPaintAvatar = function (el, avatarId, name) {
             if (!el) return;
             el.style.backgroundImage = '';
+            el.style.backgroundSize = '';
+            el.style.backgroundPosition = '';
+            el.style.background = '';
             const av = fizaiAvatarPreset(avatarId);
-            if (av) {
+            if (av && av.url) {
+                el.textContent = '';
+                el.style.backgroundImage = 'url("' + String(av.url).replace(/"/g, '%22') + '")';
+                el.style.backgroundSize = 'cover';
+                el.style.backgroundPosition = 'center';
+            } else if (av) {
                 el.textContent = av.emoji;
                 el.style.background = av.bg;
             } else {
                 el.textContent = String(name || 'И').trim().charAt(0).toUpperCase() || 'И';
-                el.style.background = '';
             }
         };
 
@@ -2374,6 +2382,9 @@
                 const initial = String(p.name || 'И').trim().charAt(0).toUpperCase() || 'И';
                 const safeUid = String(p.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
                 const av = fizaiAvatarPreset(p.avatar);
+                const avStyle = av && av.url ? `style=\"background-image:url('${String(av.url).replace(/'/g, '%27')}');background-size:cover;background-position:center\"` : (av ? `style=\"background:${av.bg}\"` : '');
+                const avContent = av && av.url ? '' : (av ? av.emoji : escapeHtml(initial));
+                const avClass = av ? 'text-lg' : 'text-sm font-bold';
                 const privTitle = p.privilege && p.privilege.title ? String(p.privilege.title) : '';
                 const privBadge = privTitle
                     ? ` <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded-md align-middle">${escapeHtml(privTitle)}</span>`
@@ -2381,7 +2392,7 @@
                 return `
                     <button type="button" onclick="openPlayerProfile('${safeUid}')" title="${pick('Открыть профиль', 'Open profile')}" class="w-full text-left flex items-center gap-3 px-3 py-3 rounded-xl border ${me ? 'border-primary/50 bg-primary/10 hover:border-primary/70' : 'border-dark-600 bg-dark-900/60 hover:border-primary/40'} hover:bg-dark-800 transition-all">
                         <div class="w-8 flex items-center justify-center shrink-0">${medal}</div>
-                        <div class="w-9 h-9 rounded-full bg-primary/20 text-primary-light flex items-center justify-center ${av ? 'text-lg' : 'text-sm font-bold'} shrink-0" ${av ? `style="background:${av.bg}"` : ''}>${av ? av.emoji : escapeHtml(initial)}</div>
+                        <div class="w-9 h-9 rounded-full bg-primary/20 text-primary-light flex items-center justify-center ${avClass} shrink-0" ${avStyle}>${avContent}</div>
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-medium text-gray-100 truncate">${escapeHtml(p.name)}${me ? ' <span class="text-[10px] text-primary-light">(' + pick('вы', 'you') + ')</span>' : ''}${privBadge}</p>
                             <p class="text-[11px] text-gray-500">${p.quizzes} ${pick(pluralQuizzes(p.quizzes), p.quizzes === 1 ? 'quiz' : 'quizzes')} · ${pick('лучший', 'best')} ${p.best}%</p>
@@ -2517,11 +2528,14 @@
                 const privDesc = p.privilege && p.privilege.desc ? String(p.privilege.desc) : '';
                 const av = fizaiAvatarPreset(p.avatar);
                 const initial = String(p.name || 'И').trim().charAt(0).toUpperCase() || 'И';
+                const avStyle = av && av.url ? `style=\"background-image:url('${String(av.url).replace(/'/g, '%27')}');background-size:cover;background-position:center\"` : (av ? `style=\"background:${av.bg}\"` : '');
+                const avContent = av && av.url ? '' : (av ? av.emoji : escapeHtml(initial));
+                const avClass = av ? 'text-lg' : 'text-sm font-bold';
                 return `
                     <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3 space-y-2">
                         <div class="flex flex-wrap items-center justify-between gap-3">
                             <div class="flex items-center gap-2.5 min-w-0">
-                                <div class="w-9 h-9 rounded-full bg-primary/20 text-primary-light flex items-center justify-center ${av ? 'text-lg' : 'text-sm font-bold'} shrink-0" ${av ? `style="background:${av.bg}"` : ''}>${av ? av.emoji : escapeHtml(initial)}</div>
+                                <div class="w-9 h-9 rounded-full bg-primary/20 text-primary-light flex items-center justify-center ${avClass} shrink-0" ${avStyle}>${avContent}</div>
                                 <div class="min-w-0">
                                     <p class="text-gray-200 truncate">${escapeHtml(p.name)} <span class="text-[10px] text-gray-500">ID ${escapeHtml(uid.slice(0, 8))}</span>${privTitle ? ` <span class="text-[10px] font-semibold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded-md">${escapeHtml(privTitle)}</span>` : ''}</p>
                                     <p class="text-[11px] text-gray-500">ELO: <span class="text-amber-400 font-semibold">${p.elo}</span> · квизов: ${p.quizzes} · лучший: ${p.best}%</p>
@@ -3907,6 +3921,30 @@ Interface language: English. The whole app is now in English, so always answer t
                         return { uid: uid, avatar: preset.id };
                     });
                 },
+                setAvatarUrl: function (uid, url) {
+                    uid = String(uid || '');
+                    url = String(url || '').trim();
+                    if (!uid) return Promise.reject(new Error('Игрок не найден'));
+                    if (url.indexOf('http://') !== 0 && url.indexOf('https://') !== 0) return Promise.reject(new Error('Введите ссылку, начинающуюся с http:// или https://'));
+                    return db.ref('stats/online').once('value').then(function (snap) {
+                        const data = snap.val() || {};
+                        const removals = [];
+                        Object.keys(data).forEach(function (key) {
+                            const m = parseEloKey(key);
+                            if (m && m.uid === uid && m.type === 'av') {
+                                removals.push(db.ref('stats/online/' + key).remove().catch(function () {}));
+                            }
+                        });
+                        return Promise.all(removals).then(function () {
+                            return eloRef('av', uid, b64urlEncode(url)).set(Date.now() / 1000);
+                        });
+                    }).then(function () {
+                        const i = eloPlayers.findIndex(function (p) { return p.uid === uid; });
+                        if (i !== -1) eloPlayers[i].avatar = url;
+                        notifyElo();
+                        return { uid: uid, avatar: url };
+                    });
+                },
                 clearAvatar: function (uid) {
                     uid = String(uid || '');
                     if (!uid) return Promise.reject(new Error('Игрок не найден'));
@@ -4031,6 +4069,35 @@ Interface language: English. The whole app is now in English, so always answer t
                 return tr('Аккаунт', 'Account');
             }
 
+            function fizaiCustomAvatar() {
+                let dataUrl = '';
+                let storedUid = '';
+                try {
+                    dataUrl = localStorage.getItem('fizai_avatar_custom_v1') || '';
+                    storedUid = localStorage.getItem('fizai_avatar_custom_uid') || '';
+                } catch (e) {}
+                const myUid = currentUser ? currentUser.uid : ((window.fizaiElo && typeof window.fizaiElo.getUid === 'function') ? window.fizaiElo.getUid() : '');
+                if (myUid && storedUid && storedUid !== myUid) return '';
+                return dataUrl.indexOf('data:image/') === 0 ? dataUrl : '';
+            }
+
+            function setCustomAvatar(dataUrl) {
+                if (!currentUser) return;
+                try {
+                    localStorage.setItem('fizai_avatar_custom_v1', dataUrl);
+                    localStorage.setItem('fizai_avatar_custom_uid', currentUser.uid);
+                } catch (e) {}
+                fizaiRefreshAvatarUI();
+            }
+
+            function clearCustomAvatar() {
+                try {
+                    localStorage.removeItem('fizai_avatar_custom_v1');
+                    localStorage.removeItem('fizai_avatar_custom_uid');
+                } catch (e) {}
+                fizaiRefreshAvatarUI();
+            }
+
             function fizaiMyAvatarId() {
                 let id = '';
                 let storedUid = '';
@@ -4053,14 +4120,29 @@ Interface language: English. The whole app is now in English, so always answer t
                 el.style.backgroundImage = '';
                 el.style.backgroundSize = '';
                 el.style.backgroundPosition = '';
+                el.style.background = '';
+                const custom = user ? fizaiCustomAvatar() : '';
+                if (custom) {
+                    el.textContent = '';
+                    el.style.backgroundImage = 'url("' + custom.replace(/"/g, '%22') + '")';
+                    el.style.backgroundSize = 'cover';
+                    el.style.backgroundPosition = 'center';
+                    return;
+                }
                 const presetId = user ? fizaiMyAvatarId() : '';
                 const preset = fizaiAvatarPreset(presetId);
+                if (preset && preset.url) {
+                    el.textContent = '';
+                    el.style.backgroundImage = 'url("' + String(preset.url).replace(/"/g, '%22') + '")';
+                    el.style.backgroundSize = 'cover';
+                    el.style.backgroundPosition = 'center';
+                    return;
+                }
                 if (preset) {
                     el.textContent = preset.emoji;
                     el.style.background = preset.bg;
                     return;
                 }
-                el.style.background = '';
                 el.textContent = name.charAt(0).toUpperCase();
                 if (user && user.photoURL) {
                     el.textContent = '';
@@ -4094,9 +4176,31 @@ Interface language: English. The whole app is now in English, so always answer t
                 setAvatar($('auth-header-avatar'), currentUser);
                 setAvatar($('sidebar-avatar'), currentUser);
                 const profileAvatar = $('profile-avatar');
-                if (profileAvatar) fizaiPaintAvatar(profileAvatar, fizaiMyAvatarId(), displayName(currentUser));
+                if (profileAvatar) {
+                    const custom = fizaiCustomAvatar();
+                    if (custom) {
+                        profileAvatar.textContent = '';
+                        profileAvatar.style.backgroundImage = 'url("' + custom.replace(/"/g, '%22') + '")';
+                        profileAvatar.style.backgroundSize = 'cover';
+                        profileAvatar.style.backgroundPosition = 'center';
+                        profileAvatar.style.background = '';
+                    } else {
+                        fizaiPaintAvatar(profileAvatar, fizaiMyAvatarId(), displayName(currentUser));
+                    }
+                }
                 const settingsAvatar = $('settings-avatar');
-                if (settingsAvatar) fizaiPaintAvatar(settingsAvatar, fizaiMyAvatarId(), displayName(currentUser));
+                if (settingsAvatar) {
+                    const custom = fizaiCustomAvatar();
+                    if (custom) {
+                        settingsAvatar.textContent = '';
+                        settingsAvatar.style.backgroundImage = 'url("' + custom.replace(/"/g, '%22') + '")';
+                        settingsAvatar.style.backgroundSize = 'cover';
+                        settingsAvatar.style.backgroundPosition = 'center';
+                        settingsAvatar.style.background = '';
+                    } else {
+                        fizaiPaintAvatar(settingsAvatar, fizaiMyAvatarId(), displayName(currentUser));
+                    }
+                }
             }
 
             window.fizaiSyncAvatarFromElo = fizaiSyncAvatarFromElo;
@@ -4894,7 +4998,18 @@ Interface language: English. The whole app is now in English, so always answer t
                 if (curPassEl) curPassEl.value = '';
                 if (msg) { msg.classList.add('hidden'); msg.textContent = ''; }
                 const avatarEl = $('settings-avatar');
-                if (avatarEl) fizaiPaintAvatar(avatarEl, fizaiMyAvatarId(), displayName(currentUser));
+                if (avatarEl) {
+                    const custom = fizaiCustomAvatar();
+                    if (custom) {
+                        avatarEl.textContent = '';
+                        avatarEl.style.backgroundImage = 'url("' + custom.replace(/"/g, '%22') + '")';
+                        avatarEl.style.backgroundSize = 'cover';
+                        avatarEl.style.backgroundPosition = 'center';
+                        avatarEl.style.background = '';
+                    } else {
+                        fizaiPaintAvatar(avatarEl, fizaiMyAvatarId(), displayName(currentUser));
+                    }
+                }
                 const modal = $('settings-modal');
                 if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
             }
@@ -4992,7 +5107,18 @@ Interface language: English. The whole app is now in English, so always answer t
                 const nameEl = $('profile-name');
                 const emailEl = $('profile-email');
                 const name = currentUser.displayName || currentUser.email || 'Пользователь';
-                if (avatar) fizaiPaintAvatar(avatar, fizaiMyAvatarId(), name);
+                if (avatar) {
+                    const custom = fizaiCustomAvatar();
+                    if (custom) {
+                        avatar.textContent = '';
+                        avatar.style.backgroundImage = 'url("' + custom.replace(/"/g, '%22') + '")';
+                        avatar.style.backgroundSize = 'cover';
+                        avatar.style.backgroundPosition = 'center';
+                        avatar.style.background = '';
+                    } else {
+                        fizaiPaintAvatar(avatar, fizaiMyAvatarId(), name);
+                    }
+                }
                 if (nameEl) nameEl.textContent = name;
                 if (emailEl) emailEl.textContent = currentUser.email || '';
                 fillProfileElo();
@@ -5066,6 +5192,11 @@ Interface language: English. The whole app is now in English, so always answer t
                         </button>`;
                     }).join('');
                 }
+                const urlInput = $('avatar-url-input');
+                if (urlInput) {
+                    const shared = fizaiMyAvatarId();
+                    urlInput.value = (shared.indexOf('http://') === 0 || shared.indexOf('https://') === 0) ? shared : '';
+                }
                 const modal = $('avatar-modal');
                 if (modal) { modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
             }
@@ -5118,10 +5249,87 @@ Interface language: English. The whole app is now in English, so always answer t
                 });
             }
 
-            window.openAvatarPicker = openAvatarPicker;
-            window.closeAvatarPicker = closeAvatarPicker;
-            window.selectAvatarChoice = selectAvatarChoice;
-            window.clearAvatarChoice = clearAvatarChoice;
+            function setAvatarUrlChoice() {
+                const input = $('avatar-url-input');
+                const url = input ? input.value : '';
+                if (!currentUser) return;
+                if (!window.fizaiElo || typeof window.fizaiElo.setAvatarUrl !== 'function') {
+                    avatarPickerMessage('ELO-модуль не загрузился. Обновите страницу.', true);
+                    return;
+                }
+                window.fizaiElo.setAvatarUrl(currentUser.uid, url).then(function () {
+                    fizaiRefreshAvatarUI();
+                    openAvatarPicker();
+                    avatarPickerMessage('Аватарка по ссылке установлена!', false);
+                }).catch(function (e) {
+                    avatarPickerMessage('Ошибка: ' + ((e && e.message) ? e.message : e), true);
+                });
+            }
+
+            function clearAvatarUrlChoice() {
+                if (!currentUser) return;
+                if (!window.fizaiElo || typeof window.fizaiElo.clearAvatar !== 'function') {
+                    avatarPickerMessage('ELO-модуль не загрузился. Обновите страницу.', true);
+                    return;
+                }
+                window.fizaiElo.clearAvatar(currentUser.uid).then(function () {
+                    fizaiRefreshAvatarUI();
+                    openAvatarPicker();
+                    avatarPickerMessage('Ссылка убрана.', false);
+                }).catch(function (e) {
+                    avatarPickerMessage('Ошибка: ' + ((e && e.message) ? e.message : e), true);
+                });
+            }
+
+            function handleAvatarFile(event) {
+                const file = event && event.target && event.target.files && event.target.files[0];
+                if (!file) return;
+                if (file.type.indexOf('image/') !== 0) {
+                    avatarPickerMessage('Выберите файл изображения.', true);
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const img = new Image();
+                    img.onload = function () {
+                        const size = 96;
+                        const canvas = document.createElement('canvas');
+                        canvas.width = size;
+                        canvas.height = size;
+                        const ctx = canvas.getContext('2d');
+                        const scale = Math.max(size / img.width, size / img.height);
+                        const w = img.width * scale;
+                        const h = img.height * scale;
+                        const x = (size - w) / 2;
+                        const y = (size - h) / 2;
+                        ctx.drawImage(img, x, y, w, h);
+                        try {
+                            const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+                            setCustomAvatar(dataUrl);
+                            openAvatarPicker();
+                            avatarPickerMessage('Фото загружено!', false);
+                        } catch (err) {
+                            avatarPickerMessage('Не удалось обработать фото.', true);
+                        }
+                    };
+                    img.onerror = function () { avatarPickerMessage('Не удалось прочитать изображение.', true); };
+                    img.src = e.target.result;
+                };
+                reader.onerror = function () { avatarPickerMessage('Не удалось прочитать файл.', true); };
+                reader.readAsDataURL(file);
+                if (event.target) event.target.value = '';
+            }
+
+            function clearCustomAvatarChoice() {
+                clearCustomAvatar();
+                openAvatarPicker();
+                avatarPickerMessage('Своё фото убрано.', false);
+            }
+
+            window.setAvatarUrlChoice = setAvatarUrlChoice;
+            window.clearAvatarUrlChoice = clearAvatarUrlChoice;
+            window.handleAvatarFile = handleAvatarFile;
+            window.clearCustomAvatarChoice = clearCustomAvatarChoice;
 
             window.openProfileModal = openProfileModal;
             window.closeProfileModal = closeProfileModal;
@@ -5206,6 +5414,29 @@ Interface language: English. The whole app is now in English, so always answer t
                     <p class="text-xs text-gray-400 mt-1">Она появится в рейтинге и профиле</p>
                 </div>
                 <div id="avatar-picker-grid" class="grid grid-cols-4 gap-3 mb-5"></div>
+                <div class="space-y-3 mb-4">
+                    <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3">
+                        <p class="text-xs text-gray-400 mb-2">Своя картинка по ссылке (видна всем)</p>
+                        <div class="flex gap-2">
+                            <input id="avatar-url-input" type="url" placeholder="https://example.com/avatar.jpg" class="flex-1 bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-xs text-gray-100 focus:outline-none focus:border-amber-400">
+                            <button onclick="setAvatarUrlChoice()" class="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-dark-900 text-xs font-medium transition-all shrink-0">Установить</button>
+                        </div>
+                        <button onclick="clearAvatarUrlChoice()" class="mt-2 text-[11px] text-gray-400 hover:text-red-300 transition-all">Убрать ссылку</button>
+                    </div>
+                    <div class="bg-dark-900/60 border border-dark-600 rounded-xl p-3">
+                        <p class="text-xs text-gray-400 mb-2">Загрузить своё фото (только на этом устройстве)</p>
+                        <input id="avatar-file-input" type="file" accept="image/*" class="hidden" onchange="handleAvatarFile(event)">
+                        <div class="flex gap-2">
+                            <button onclick="document.getElementById('avatar-file-input').click()" class="flex-1 px-3 py-2 rounded-lg bg-primary/15 hover:bg-primary/25 text-primary-light text-xs font-medium border border-primary/30 transition-all">
+                                <i class="fa-solid fa-upload mr-1"></i>Выбрать файл
+                            </button>
+                            <button onclick="clearCustomAvatarChoice()" class="px-3 py-2 rounded-lg bg-dark-700 hover:bg-red-500/20 text-gray-300 hover:text-red-300 border border-dark-600 hover:border-red-500/30 text-xs transition-all shrink-0">
+                                Убрать
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-gray-500 mt-2">Фото сохраняется в браузере и видно только вам.</p>
+                    </div>
+                </div>
                 <div id="avatar-picker-msg" class="hidden text-sm rounded-xl px-3 py-2 mb-3"></div>
                 <button onclick="clearAvatarChoice()" class="w-full px-4 py-2.5 rounded-xl bg-dark-700 hover:bg-dark-600 text-gray-300 text-sm font-medium border border-dark-600 transition-all">
                     <i class="fa-solid fa-rotate-left mr-2"></i>Сбросить на стандартную
