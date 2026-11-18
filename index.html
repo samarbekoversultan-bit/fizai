@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0b0f19">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FizAI">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/icon.svg">
+    <link rel="apple-touch-icon" href="/icon.svg">
     <title>FizAI — Ваш умный репетитор по физике</title>
     <!-- Раннее соединение с CDN ускоряет первую загрузку страницы -->
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
@@ -5797,5 +5803,43 @@ Interface language: English. The whole app is now in English, so always answer t
             </div>
         </div>
     </div>
+    <!-- Баннер установки PWA -->
+    <div id="pwa-install-banner" class="hidden fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 bg-dark-800 border border-primary/40 rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 max-w-sm">
+        <div class="w-9 h-9 rounded-xl bg-primary/20 text-primary-light flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-download"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-white">Установить FizAI</p>
+            <p class="text-[11px] text-gray-400">Как приложение на телефон</p>
+        </div>
+        <button id="pwa-install-btn" class="px-3 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-medium transition-all shrink-0">Установить</button>
+        <button onclick="document.getElementById('pwa-install-banner').classList.add('hidden')" class="w-7 h-7 rounded-lg text-gray-400 hover:text-white flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+    <script>
+        (function () {
+            var deferredPrompt = null;
+            var banner = document.getElementById('pwa-install-banner');
+            var btn = document.getElementById('pwa-install-btn');
+            window.addEventListener('beforeinstallprompt', function (e) {
+                e.preventDefault();
+                deferredPrompt = e;
+                if (banner) banner.classList.remove('hidden');
+            });
+            if (btn) btn.addEventListener('click', function () {
+                if (!deferredPrompt) return;
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(function () {
+                    deferredPrompt = null;
+                    if (banner) banner.classList.add('hidden');
+                });
+            });
+            window.addEventListener('appinstalled', function () {
+                if (banner) banner.classList.add('hidden');
+                deferredPrompt = null;
+            });
+        })();
+    </script>
 </body>
 </html>
