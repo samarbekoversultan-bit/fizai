@@ -1,5 +1,5 @@
-const CACHE_NAME = 'fizai-v1';
-const PRECACHE = ['/', '/index.html', '/manifest.json', '/icon.svg'];
+const CACHE_NAME = 'fizai-v2';
+const PRECACHE = ['/', '/index.html', '/manifest.json', '/icon.svg', '/icon-192.png', '/icon-512.png', '/quiz-extra.js'];
 
 self.addEventListener('install', function (event) {
   event.waitUntil(
@@ -32,6 +32,19 @@ self.addEventListener('fetch', function (event) {
         caches.open(CACHE_NAME).then(function (cache) { cache.put(req, copy).catch(function(){}); });
         return res;
       }).catch(function () { return caches.match(req); })
+    );
+    return;
+  }
+  var isCode = req.mode === 'navigate' || url.pathname === '/' || /\.(?:html|js|json)$/i.test(url.pathname);
+  if (isCode) {
+    event.respondWith(
+      fetch(req).then(function (res) {
+        var copy = res.clone();
+        caches.open(CACHE_NAME).then(function (cache) { cache.put(req, copy).catch(function(){}); });
+        return res;
+      }).catch(function () {
+        return caches.match(req).then(function (cached) { return cached || caches.match('/index.html'); });
+      })
     );
     return;
   }

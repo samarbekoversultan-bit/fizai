@@ -659,6 +659,25 @@
                     <h4 class="font-semibold text-gray-200 mb-3">Пользовательские вопросы</h4>
                     <div id="admin-list" class="space-y-2 text-sm"></div>
                 </div>
+                <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 md:p-6 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h4 class="font-semibold text-gray-200">Отзывы пользователей</h4>
+                            <p class="text-xs text-gray-500">Удаляйте негативные или нарушающие правила отзывы</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <label class="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer">
+                                <input id="admin-reviews-negative" type="checkbox" onchange="adminRenderReviews()" class="accent-amber-500">
+                                Только 1–2 ★
+                            </label>
+                            <button onclick="adminLoadReviews()" class="text-xs bg-dark-700 hover:bg-dark-600 text-gray-300 px-3 py-1.5 rounded-lg border border-dark-600 transition-all">
+                                <i class="fa-solid fa-rotate mr-1"></i>Обновить
+                            </button>
+                        </div>
+                    </div>
+                    <div id="admin-reviews-list" class="space-y-2 text-sm"></div>
+                    <p id="admin-reviews-msg" class="text-sm text-gray-400"></p>
+                </div>
                 <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 md:p-6 space-y-4">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
@@ -714,6 +733,7 @@
         </div>
     </nav>
 
+    <script src="quiz-extra.js"></script>
     <script>
         // API-ключ Gemini хранится ТОЛЬКО на сервере (Netlify Function) и в коде сайта не появляется.
         // Функции: netlify/functions/chat.js (обычный ответ) и chat-stream.mjs (потоковый, быстрый).
@@ -1696,6 +1716,13 @@
             { grade: 11, q: "Что такое ядерная реакция?", options: ["превращение атомных ядер", "химическая реакция", "нагревание вещества", "плавление металла"], correct: 0 }
         ];
 
+        // Дополнительный банк вопросов (около 100 заданий на каждый класс)
+        (window.FIZAI_EXTRA_QUIZZES || []).forEach(function (item) {
+            if (item && item.grade && item.q && Array.isArray(item.options) && item.options.length >= 2) {
+                quizDB.push(item);
+            }
+        });
+
         // Классы, доступные для выбора, и описание программы каждого из них
         const QUIZ_GRADES = [7, 8, 9, 10, 11];
         const QUIZ_GRADE_INFO = {
@@ -1782,14 +1809,12 @@
         // Экран выбора класса (7–11)
         function quizGradePickerHTML() {
             const buttons = QUIZ_GRADES.map(g => {
-                const count = quizDB.filter(q => q.grade === g).length;
                 const info = QUIZ_GRADE_INFO[g] || ['', ''];
                 return `
                     <button onclick="selectQuizGrade(${g})"
                         class="group text-left bg-dark-700 hover:bg-dark-600 hover:border-primary/60 border border-dark-600 rounded-2xl p-5 transition-all cursor-pointer">
                         <div class="flex items-center justify-between gap-3">
                             <span class="w-12 h-12 rounded-xl bg-gradient-to-tr from-primary to-accent text-white text-xl font-bold flex items-center justify-center group-hover:scale-110 transition-transform">${g}</span>
-                            <span class="text-[11px] bg-dark-900/70 text-gray-400 px-2 py-1 rounded-full">${pick(`${count} ${pluralQuestions(count)}`, `${count} questions`)}</span>
                         </div>
                         <p class="mt-3 text-sm font-semibold text-white">${pick(`${g} класс`, `Grade ${g}`)}</p>
                         <p class="text-xs text-gray-400 mt-1 leading-snug">${pick(info[0], info[1])}</p>
@@ -1863,8 +1888,8 @@
                             <i class="fa-solid ${pct >= 0.5 ? 'fa-trophy' : 'fa-rotate-right'}"></i>
                         </div>
                         <h4 class="text-xl font-bold text-white">${pick('Квиз завершён!', 'Quiz complete!')}</h4>
-                        <p class="text-3xl font-extrabold text-accent">${quizScore} / ${total}</p>
-                        <p class="text-sm text-gray-400">${pick('Правильных ответов:', 'Correct answers:')} ${quizScore} ${pick('из', 'of')} ${total}</p>
+                        <p class="text-3xl font-extrabold text-accent">${quizScore}</p>
+                        <p class="text-sm text-gray-400">${pick('Правильных ответов', 'Correct answers')}</p>
                         <p class="text-gray-300">${verdict}</p>
                         ${eloBadge}
                         <div class="flex flex-wrap items-center justify-center gap-3">
@@ -1879,8 +1904,6 @@
 
             const total = quizDeck.length;
             const answered = quizAnswered >= 0;
-            const done = quizPos + (answered ? 1 : 0);
-            const pct = Math.round((done / total) * 100);
 
             const optsHtml = quizCurrent.opts.map((o, i) => {
                 let cls = 'bg-dark-700 hover:bg-dark-600 border-dark-600 text-gray-200';
@@ -1913,11 +1936,8 @@
                         <button onclick="changeQuizGrade()" class="text-xs bg-dark-700 hover:bg-dark-600 text-gray-300 px-3 py-1.5 rounded-lg border border-dark-600 transition-all">${pick('Сменить класс', 'Change grade')}</button>
                     </div>
                     <div class="flex items-center justify-between text-sm">
-                        <span class="text-gray-400">${pick(`Вопрос ${quizPos + 1} из ${total}`, `Question ${quizPos + 1} of ${total}`)}</span>
+                        <span class="text-gray-400">${pick(`Вопрос ${quizPos + 1}`, `Question ${quizPos + 1}`)}</span>
                         <span class="text-emerald-400 font-semibold">${pick('Счёт:', 'Score:')} ${quizScore}</span>
-                    </div>
-                    <div class="w-full bg-dark-900 rounded-full h-2 overflow-hidden">
-                        <div class="bg-gradient-to-r from-primary to-accent h-2 rounded-full transition-all" style="width: ${pct}%"></div>
                     </div>
                     <h4 class="text-lg font-bold text-white leading-snug">${T(quizCurrent.text)}</h4>
                     <div class="grid gap-3">${optsHtml}</div>
@@ -1987,6 +2007,7 @@
             switchTab('admin');
             renderAdminList();
             if (typeof adminLoadEloPlayers === 'function') adminLoadEloPlayers();
+            if (typeof adminRenderReviews === 'function') adminRenderReviews();
         };
         window.lockAdminPanel = function() { switchTab('dashboard'); };
         window.adminAddQuestion = function() {
@@ -2599,6 +2620,14 @@
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </div>
+                        <div class="flex gap-2">
+                            <input id="admin-quiz-amt-${uid}" type="number" placeholder="Квизов (+/-)" class="flex-1 bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-xs text-gray-100 focus:outline-none focus:border-emerald-400">
+                            <button onclick="adminApplyQuizDelta('${uid}')" class="px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-dark-900 text-xs font-medium transition-all shrink-0">Начислить квизы</button>
+                        </div>
+                        <div class="flex gap-2">
+                            <input id="admin-quiz-exact-${uid}" type="number" min="0" placeholder="Точное число квизов" class="flex-1 bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-xs text-gray-100 focus:outline-none focus:border-emerald-400">
+                            <button onclick="adminSetExactQuizzes('${uid}')" class="px-3 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-xs font-medium transition-all shrink-0">Установить</button>
+                        </div>
                         <div class="border-t border-dark-600 pt-2.5 mt-1 space-y-2">
                             <p class="text-[11px] text-gray-400">Привилегия: ${privTitle ? `<span class="text-amber-300 font-semibold">${escapeHtml(privTitle)}</span>` : '<span class="text-gray-500">не выдана</span>'}${privDesc ? `<span class="text-gray-500"> — ${escapeHtml(privDesc)}</span>` : ''}</p>
                             <div class="flex gap-2">
@@ -2658,6 +2687,117 @@
             window.fizaiElo.setElo(uid, value).then(function (p) {
                 if (msg) msg.textContent = 'Готово: ' + p.name + ' — ' + p.elo + ' ELO';
                 window.adminRenderEloList();
+            }).catch(function (e) {
+                if (msg) msg.textContent = 'Ошибка: ' + ((e && e.message) ? e.message : e);
+            });
+        };
+
+        window.adminApplyQuizDelta = function (uid) {
+            const input = document.getElementById('admin-quiz-amt-' + uid);
+            const delta = parseInt(input ? input.value : '', 10);
+            const msg = document.getElementById('admin-elo-msg');
+            if (!delta || !isFinite(delta)) {
+                if (msg) msg.textContent = 'Введите число квизов (например, 10 или -5).';
+                return;
+            }
+            if (input) input.value = '';
+            if (!window.fizaiElo || typeof window.fizaiElo.adjustQuizzes !== 'function') {
+                if (msg) msg.textContent = 'ELO-модуль не загрузился.';
+                return;
+            }
+            if (msg) msg.textContent = 'Изменяем число квизов...';
+            window.fizaiElo.adjustQuizzes(uid, delta).then(function (p) {
+                if (msg) msg.textContent = 'Готово: ' + p.name + ' — квизов ' + p.quizzes;
+                window.adminRenderEloList();
+            }).catch(function (e) {
+                if (msg) msg.textContent = 'Ошибка: ' + ((e && e.message) ? e.message : e);
+            });
+        };
+
+        window.adminSetExactQuizzes = function (uid) {
+            const input = document.getElementById('admin-quiz-exact-' + uid);
+            const value = parseInt(input ? input.value : '', 10);
+            const msg = document.getElementById('admin-elo-msg');
+            if (!isFinite(value) || value < 0) {
+                if (msg) msg.textContent = 'Введите точное число квизов (0 или больше).';
+                return;
+            }
+            if (input) input.value = '';
+            if (!window.fizaiElo || typeof window.fizaiElo.setQuizzes !== 'function') {
+                if (msg) msg.textContent = 'ELO-модуль не загрузился.';
+                return;
+            }
+            if (msg) msg.textContent = 'Устанавливаем число квизов...';
+            window.fizaiElo.setQuizzes(uid, value).then(function (p) {
+                if (msg) msg.textContent = 'Готово: ' + p.name + ' — квизов ' + p.quizzes;
+                window.adminRenderEloList();
+            }).catch(function (e) {
+                if (msg) msg.textContent = 'Ошибка: ' + ((e && e.message) ? e.message : e);
+            });
+        };
+
+        window.adminLoadReviews = function () {
+            const msg = document.getElementById('admin-reviews-msg');
+            if (msg) msg.textContent = 'Загружаем отзывы...';
+            if (window.fizaiElo && typeof window.fizaiElo.refresh === 'function') {
+                window.fizaiElo.refresh().then(function () {
+                    if (msg) msg.textContent = '';
+                    window.adminRenderReviews();
+                }).catch(function (e) {
+                    if (msg) msg.textContent = 'Ошибка: ' + ((e && e.message) ? e.message : e);
+                    window.adminRenderReviews();
+                });
+            } else {
+                window.adminRenderReviews();
+            }
+        };
+
+        window.adminRenderReviews = function () {
+            const el = document.getElementById('admin-reviews-list');
+            if (!el) return;
+            const neg = document.getElementById('admin-reviews-negative');
+            const onlyNegative = !!(neg && neg.checked);
+            const list = (window.reviewsList || []).filter(function (r) {
+                return !onlyNegative || (Number(r.rating) || 0) <= 2;
+            });
+            if (!list.length) {
+                el.innerHTML = '<p class="text-gray-500">' + (onlyNegative ? 'Негативных отзывов нет.' : 'Пока нет отзывов.') + '</p>';
+                return;
+            }
+            el.innerHTML = list.map(function (r) {
+                const rating = Math.max(1, Math.min(5, Number(r.rating) || 5));
+                const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
+                const dateStr = r.date ? (function () { try { return new Date(r.date).toLocaleDateString(); } catch (e) { return r.date; } })() : '';
+                return `<div class="flex items-start gap-3 bg-dark-900/60 border border-dark-600 rounded-xl p-3">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-gray-200 truncate">${escapeHtml(r.name || 'Аноним')} <span class="text-amber-400 text-xs">${stars}</span>${dateStr ? ` <span class="text-[10px] text-gray-500">${escapeHtml(dateStr)}</span>` : ''}</p>
+                        <p class="text-xs text-gray-400 mt-1 leading-relaxed">${escapeHtml(r.text || '')}</p>
+                    </div>
+                    <button onclick="adminDeleteReview('${escapeHtml(r.id)}')" title="Удалить отзыв" aria-label="Удалить отзыв" class="shrink-0 w-8 h-8 rounded-lg bg-dark-700 hover:bg-red-500/20 text-gray-400 hover:text-red-300 border border-dark-600 hover:border-red-500/30 flex items-center justify-center transition-all">
+                        <i class="fa-solid fa-trash text-xs"></i>
+                    </button>
+                </div>`;
+            }).join('');
+        };
+
+        let adminReviewRemovePending = {};
+        window.adminDeleteReview = function (id) {
+            const msg = document.getElementById('admin-reviews-msg');
+            if (!window.fizaiElo || typeof window.fizaiElo.deleteReview !== 'function') {
+                if (msg) msg.textContent = 'Модуль отзывов не загрузился.';
+                return;
+            }
+            const now = Date.now();
+            if (!adminReviewRemovePending[id] || now - adminReviewRemovePending[id] > 4000) {
+                adminReviewRemovePending[id] = now;
+                if (msg) msg.textContent = 'Нажмите корзину ещё раз в течение 4 секунд, чтобы удалить отзыв.';
+                return;
+            }
+            delete adminReviewRemovePending[id];
+            if (msg) msg.textContent = 'Удаляем отзыв...';
+            window.fizaiElo.deleteReview(id).then(function () {
+                if (msg) msg.textContent = 'Отзыв удалён.';
+                window.adminRenderReviews();
             }).catch(function (e) {
                 if (msg) msg.textContent = 'Ошибка: ' + ((e && e.message) ? e.message : e);
             });
@@ -3940,6 +4080,56 @@ Interface language: English. The whole app is now in English, so always answer t
                         return player;
                     });
                 },
+                adjustQuizzes: function (uid, delta) {
+                    uid = String(uid || '');
+                    const d = Math.round(Number(delta) || 0);
+                    if (!uid || !d) return Promise.reject(new Error('Введите ненулевое значение'));
+                    const me = eloPlayers.find(function (p) { return p.uid === uid; });
+                    if (!me) return Promise.reject(new Error('Игрок не найден — пусть он зайдёт на сайт ещё раз'));
+                    return eloRef('lb', uid, me.nameB64).transaction(function (cur) {
+                        const base = unpackElo(cur);
+                        return packElo(base.elo, base.quizzes + d, base.best);
+                    }).then(function (res) {
+                        const stats = unpackElo(res.snapshot.val());
+                        const updatedAt = Date.now() / 1000;
+                        writeEloTimestamp(uid, me.nameB64, updatedAt);
+                        const player = {
+                            uid: uid, name: me.name, nameB64: me.nameB64,
+                            elo: stats.elo, quizzes: stats.quizzes, best: stats.best,
+                            updatedAt: updatedAt,
+                            privilege: me.privilege || null,
+                            avatar: me.avatar || ''
+                        };
+                        mergeEloPlayer(player);
+                        notifyElo();
+                        return player;
+                    });
+                },
+                setQuizzes: function (uid, value) {
+                    uid = String(uid || '');
+                    const target = Math.max(0, Math.min(9999, Math.round(Number(value) || 0)));
+                    if (!uid) return Promise.reject(new Error('Игрок не найден'));
+                    const me = eloPlayers.find(function (p) { return p.uid === uid; });
+                    if (!me) return Promise.reject(new Error('Игрок не найден — обновите список'));
+                    return eloRef('lb', uid, me.nameB64).transaction(function (cur) {
+                        const base = unpackElo(cur);
+                        return packElo(base.elo, target, base.best);
+                    }).then(function (res) {
+                        const stats = unpackElo(res.snapshot.val());
+                        const updatedAt = Date.now() / 1000;
+                        writeEloTimestamp(uid, me.nameB64, updatedAt);
+                        const player = {
+                            uid: uid, name: me.name, nameB64: me.nameB64,
+                            elo: stats.elo, quizzes: stats.quizzes, best: stats.best,
+                            updatedAt: updatedAt,
+                            privilege: me.privilege || null,
+                            avatar: me.avatar || ''
+                        };
+                        mergeEloPlayer(player);
+                        notifyElo();
+                        return player;
+                    });
+                },
                 removePlayer: function (uid) {
                     uid = String(uid || '');
                     if (!uid) return Promise.reject(new Error('Игрок не найден'));
@@ -4093,17 +4283,49 @@ Interface language: English. The whole app is now in English, so always answer t
                 },
                 setCurrentUser: function (user) { currentUser = user || null; },
                 addReview: function (name, rating, text) {
+                    if (!currentUser || !currentUser.uid) return Promise.reject(new Error('Войдите в аккаунт, чтобы оставить отзыв'));
                     name = String(name || '').replace(/\s+/g, ' ').trim().slice(0, 40);
                     text = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 100);
                     rating = Math.max(1, Math.min(5, Math.round(Number(rating) || 5)));
                     if (!name) return Promise.reject(new Error('Введите имя'));
                     if (text.length < 10) return Promise.reject(new Error('Отзыв должен быть не короче 10 символов'));
-                    const id = 'r_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+                    const id = currentUser.uid;
                     const date = new Date().toISOString().slice(0, 10);
                     const payload = name + '\n' + rating + '\n' + text + '\n' + date;
                     const b64 = b64urlEncode(payload);
                     if (b64.length > 700) return Promise.reject(new Error('Отзыв слишком длинный'));
-                    return eloRef('rv', id, b64).set(Date.now() / 1000).then(function () {
+                    return db.ref('stats/online').once('value').then(function (snap) {
+                        const data = snap.val() || {};
+                        const already = Object.keys(data).some(function (key) {
+                            const m = parseEloKey(key);
+                            return m && m.type === 'rv' && m.uid === id;
+                        });
+                        if (already) throw new Error('Вы уже оставляли отзыв. Удалите его, чтобы написать новый.');
+                        return eloRef('rv', id, b64).set(Date.now() / 1000);
+                    }).then(function () {
+                        return { id: id };
+                    });
+                },
+                deleteReview: function (id) {
+                    id = String(id || '');
+                    if (!id) return Promise.reject(new Error('Отзыв не найден'));
+                    const isMine = !!(currentUser && currentUser.uid === id);
+                    let isAdmin = false;
+                    try { isAdmin = !!currentUser && localStorage.getItem('fizai_admin_unlocked') === '1'; } catch (e) {}
+                    if (!isMine && !isAdmin) return Promise.reject(new Error('Нет прав на удаление этого отзыва'));
+                    return db.ref('stats/online').once('value').then(function (snap) {
+                        const data = snap.val() || {};
+                        const removals = [];
+                        Object.keys(data).forEach(function (key) {
+                            const m = parseEloKey(key);
+                            if (m && m.type === 'rv' && m.uid === id) {
+                                removals.push(db.ref('stats/online/' + key).remove());
+                            }
+                        });
+                        return Promise.all(removals);
+                    }).then(function () {
+                        window.reviewsList = (window.reviewsList || []).filter(function (r) { return r.id !== id; });
+                        notifyElo();
                         return { id: id };
                     });
                 },
@@ -5431,29 +5653,60 @@ Interface language: English. The whole app is now in English, so always answer t
                 const el = document.getElementById('reviews-list');
                 if (!el) return;
                 const all = (window.reviewsList || []).slice();
+                const myUid = currentUser ? currentUser.uid : '';
+                let adminUnlocked = false;
+                try { adminUnlocked = !!currentUser && localStorage.getItem('fizai_admin_unlocked') === '1'; } catch (e) {}
                 if (!all.length) {
                     el.innerHTML = '<p class="text-gray-500 text-sm col-span-full">Пока нет отзывов. Будьте первым!</p>';
+                    if (typeof window.adminRenderReviews === 'function') window.adminRenderReviews();
                     return;
                 }
                 el.innerHTML = all.map(function (r) {
                     const stars = '★'.repeat(r.rating || 0) + '☆'.repeat(5 - (r.rating || 0));
                     const dateStr = r.date ? (function(){ try { return new Date(r.date).toLocaleDateString(); } catch(e){ return r.date; } })() : '';
                     const initial = String(r.name || '?').trim().charAt(0).toUpperCase() || '?';
+                    const isMine = !!(myUid && r.id === myUid);
+                    const canDelete = isMine || adminUnlocked;
                     return `<div class="bg-dark-900/60 border border-dark-600 rounded-xl p-4">
                         <div class="flex items-center gap-3 mb-2">
                             <div class="w-9 h-9 rounded-full bg-primary/20 text-primary-light flex items-center justify-center text-sm font-bold shrink-0">${escapeHtml(initial)}</div>
                             <div class="min-w-0 flex-1">
-                                <p class="text-sm font-medium text-gray-200 truncate">${escapeHtml(r.name || 'Аноним')}</p>
+                                <p class="text-sm font-medium text-gray-200 truncate">${escapeHtml(r.name || 'Аноним')}${isMine ? '<span class="ml-1.5 text-[10px] font-semibold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded-md align-middle">Ваш отзыв</span>' : ''}</p>
                                 <p class="text-[11px] text-amber-400">${stars}</p>
                             </div>
                             ${dateStr ? `<span class="text-[10px] text-gray-500 shrink-0">${escapeHtml(dateStr)}</span>` : ''}
+                            ${canDelete ? `<button onclick="deleteReview('${escapeHtml(r.id)}')" title="Удалить отзыв" aria-label="Удалить отзыв" class="shrink-0 w-8 h-8 rounded-lg bg-dark-700 hover:bg-red-500/20 text-gray-400 hover:text-red-300 border border-dark-600 hover:border-red-500/30 flex items-center justify-center transition-all"><i class="fa-solid fa-trash text-xs"></i></button>` : ''}
                         </div>
                         <p class="text-xs text-gray-400 leading-relaxed">${escapeHtml(r.text || '')}</p>
                     </div>`;
                 }).join('');
+                if (typeof window.adminRenderReviews === 'function') window.adminRenderReviews();
+            }
+
+            function deleteReview(id) {
+                if (!id) return;
+                if (!window.confirm('Удалить этот отзыв?')) return;
+                if (!window.fizaiElo || typeof window.fizaiElo.deleteReview !== 'function') {
+                    toast('Модуль отзывов не загрузился. Обновите страницу.', 'error');
+                    return;
+                }
+                window.fizaiElo.deleteReview(id).then(function () {
+                    toast('Отзыв удалён.', 'success');
+                }).catch(function (e) {
+                    toast('Ошибка: ' + ((e && e.message) ? e.message : e), 'error');
+                });
             }
 
             function openReviewModal() {
+                if (!window.fizaiAuth || !window.fizaiAuth.isSignedIn()) {
+                    toast('Войдите в аккаунт, чтобы оставить отзыв.', 'error');
+                    if (typeof openAuthModal === 'function') openAuthModal('login');
+                    return;
+                }
+                if ((window.reviewsList || []).some(function (r) { return currentUser && r.id === currentUser.uid; })) {
+                    toast('Вы уже оставляли отзыв. Удалите его в разделе «Отзывы», чтобы написать новый.', 'error');
+                    return;
+                }
                 const modal = document.getElementById('review-modal');
                 const nameEl = document.getElementById('review-name');
                 const textEl = document.getElementById('review-text');
@@ -5486,6 +5739,17 @@ Interface language: English. The whole app is now in English, so always answer t
             }
 
             function submitReview() {
+                if (!window.fizaiAuth || !window.fizaiAuth.isSignedIn()) {
+                    toast('Войдите в аккаунт, чтобы оставить отзыв.', 'error');
+                    closeReviewModal();
+                    if (typeof openAuthModal === 'function') openAuthModal('login');
+                    return;
+                }
+                if ((window.reviewsList || []).some(function (r) { return currentUser && r.id === currentUser.uid; })) {
+                    toast('Вы уже оставляли отзыв. Удалите его, чтобы написать новый.', 'error');
+                    closeReviewModal();
+                    return;
+                }
                 const nameEl = document.getElementById('review-name');
                 const textEl = document.getElementById('review-text');
                 const msg = document.getElementById('review-msg');
@@ -5517,6 +5781,7 @@ Interface language: English. The whole app is now in English, so always answer t
             window.setReviewRating = setReviewRating;
             window.submitReview = submitReview;
             window.renderReviews = renderReviews;
+            window.deleteReview = deleteReview;
 
             renderReviews();
         })();
