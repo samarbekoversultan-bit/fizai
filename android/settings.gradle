@@ -1,0 +1,2 @@
+rootProject.name = "FizAI"
+include ':app'
