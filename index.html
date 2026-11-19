@@ -522,12 +522,57 @@
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h3 class="text-xl md:text-2xl font-bold text-white">Интерактивные калькуляторы</h3>
-                        <p class="text-gray-400 text-sm">Расчет по всем формулам из справочника</p>
+                        <p class="text-gray-400 text-sm">Расчёт по формулам и перевод единиц измерения</p>
                     </div>
                     <div class="relative w-full md:w-72">
                         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400"><i class="fa-solid fa-search"></i></span>
                         <input type="text" id="calc-search" oninput="filterCalculators()" placeholder="Поиск калькулятора..." class="w-full bg-dark-800 border border-dark-600 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-primary">
                     </div>
+                </div>
+
+                <!-- Конвертер единиц измерения -->
+                <div class="bg-dark-800 border border-dark-600 rounded-2xl p-4 md:p-6 space-y-4">
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-11 h-11 rounded-xl bg-accent/15 text-accent flex items-center justify-center text-lg shrink-0">
+                                <i class="fa-solid fa-right-left"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-white">Конвертер единиц</h4>
+                                <p class="text-xs text-gray-500">Минуты в секунды, километры в метры и другие величины из программы 7–11 классов</p>
+                            </div>
+                        </div>
+                        <div id="unit-grade-buttons" class="flex flex-wrap gap-1.5"></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1.5">Величина</label>
+                            <select id="unit-category" onchange="onUnitCategoryChange()" class="w-full bg-dark-900 border border-dark-600 rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-accent"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1.5">Значение</label>
+                            <input id="unit-value" type="text" inputmode="decimal" value="1" oninput="convertUnits()" placeholder="Например, 5" class="w-full bg-dark-900 border border-dark-600 rounded-xl px-4 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-accent">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-3 items-end">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1.5">Из</label>
+                            <select id="unit-from" onchange="convertUnits()" class="w-full bg-dark-900 border border-dark-600 rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-accent"></select>
+                        </div>
+                        <button onclick="swapUnits()" title="Поменять местами" aria-label="Поменять местами"
+                                class="h-11 w-full md:w-11 rounded-xl bg-dark-700 hover:bg-dark-600 text-accent border border-dark-600 flex items-center justify-center transition-all">
+                            <i class="fa-solid fa-right-left"></i>
+                        </button>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1.5">В</label>
+                            <select id="unit-to" onchange="convertUnits()" class="w-full bg-dark-900 border border-dark-600 rounded-xl px-3 py-2.5 text-sm text-gray-100 focus:outline-none focus:border-accent"></select>
+                        </div>
+                    </div>
+                    <div class="rounded-xl border border-accent/30 bg-gradient-to-r from-accent/10 via-dark-900/40 to-primary/10 px-4 py-4 text-center">
+                        <p id="unit-result-main" class="text-xl md:text-2xl font-extrabold text-white break-words">1 мин = 60 с</p>
+                        <p id="unit-result-sub" class="text-xs text-gray-400 mt-1">1 с = 0,0166667 мин</p>
+                    </div>
+                    <p class="text-[11px] text-gray-500">Популярное: 1 мин = 60 с · 1 ч = 3600 с · 1 км = 1000 м · 1 кг = 1000 г · 1 л = 1000 мл</p>
                 </div>
 
                 <div id="calculators-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1051,6 +1096,7 @@
             }
             if (typeof filterFormulas === 'function') filterFormulas();
             if (typeof filterCalculators === 'function') filterCalculators();
+            if (typeof window.refreshUnitConverter === 'function') window.refreshUnitConverter();
             if (typeof renderQuiz === 'function') renderQuiz();
             if (typeof renderQuizStats === 'function') renderQuizStats();
             if (typeof renderLeaderboard === 'function') renderLeaderboard();
@@ -1422,6 +1468,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             renderFormulas(formulasDB);
             renderCalculators(calcsDB);
+            initUnitConverter();
             startQuiz();
         });
 
@@ -1618,6 +1665,448 @@
                 c.category.toLowerCase().includes(query)
             );
             renderCalculators(filtered);
+        }
+
+        // ===== КОНВЕРТЕР ЕДИНИЦ ИЗМЕРЕНИЯ (7–11 КЛАСС) =====
+        // g — минимальный класс, в котором встречается единица.
+        // factor — сколько базовых единиц СИ в одной такой единице.
+        // Для температуры используется отдельная пара функций toBase/fromBase.
+        const unitCategories = [
+            {
+                id: 'time', ru: 'Время', en: 'Time', kk: 'Уақыт', defaultFrom: 'min', defaultTo: 's',
+                units: [
+                    { id: 'ns', ru: 'нс', en: 'ns', factor: 1e-9, g: 11 },
+                    { id: 'us', ru: 'мкс', en: 'µs', factor: 1e-6, g: 10 },
+                    { id: 'ms', ru: 'мс', en: 'ms', factor: 0.001, g: 9 },
+                    { id: 's', ru: 'с', en: 's', factor: 1, g: 7 },
+                    { id: 'min', ru: 'мин', en: 'min', factor: 60, g: 7 },
+                    { id: 'h', ru: 'ч', en: 'h', factor: 3600, g: 7 },
+                    { id: 'day', ru: 'сут', en: 'day', factor: 86400, g: 7 },
+                    { id: 'week', ru: 'нед', en: 'week', factor: 604800, g: 7 },
+                    { id: 'year', ru: 'год', en: 'year', factor: 31536000, g: 7 }
+                ]
+            },
+            {
+                id: 'length', ru: 'Длина', en: 'Length', kk: 'Ұзындық', defaultFrom: 'km', defaultTo: 'm',
+                units: [
+                    { id: 'nm', ru: 'нм', en: 'nm', factor: 1e-9, g: 11 },
+                    { id: 'um', ru: 'мкм', en: 'µm', factor: 1e-6, g: 10 },
+                    { id: 'mm', ru: 'мм', en: 'mm', factor: 0.001, g: 7 },
+                    { id: 'cm', ru: 'см', en: 'cm', factor: 0.01, g: 7 },
+                    { id: 'dm', ru: 'дм', en: 'dm', factor: 0.1, g: 7 },
+                    { id: 'm', ru: 'м', en: 'm', factor: 1, g: 7 },
+                    { id: 'km', ru: 'км', en: 'km', factor: 1000, g: 7 },
+                    { id: 'au', ru: 'а.е.', en: 'AU', factor: 1.495978707e11, g: 11 },
+                    { id: 'ly', ru: 'св. год', en: 'light year', factor: 9.4607304725808e15, g: 11 }
+                ]
+            },
+            {
+                id: 'area', ru: 'Площадь', en: 'Area', kk: 'Аудан', defaultFrom: 'm2', defaultTo: 'cm2',
+                units: [
+                    { id: 'mm2', ru: 'мм²', en: 'mm²', factor: 1e-6, g: 7 },
+                    { id: 'cm2', ru: 'см²', en: 'cm²', factor: 1e-4, g: 7 },
+                    { id: 'dm2', ru: 'дм²', en: 'dm²', factor: 0.01, g: 7 },
+                    { id: 'm2', ru: 'м²', en: 'm²', factor: 1, g: 7 },
+                    { id: 'ar', ru: 'ар (сотка)', en: 'are', factor: 100, g: 7 },
+                    { id: 'ha', ru: 'га', en: 'ha', factor: 10000, g: 7 },
+                    { id: 'km2', ru: 'км²', en: 'km²', factor: 1e6, g: 7 }
+                ]
+            },
+            {
+                id: 'volume', ru: 'Объём', en: 'Volume', kk: 'Көлем', defaultFrom: 'l', defaultTo: 'ml',
+                units: [
+                    { id: 'mm3', ru: 'мм³', en: 'mm³', factor: 1e-9, g: 7 },
+                    { id: 'cm3', ru: 'см³', en: 'cm³', factor: 1e-6, g: 7 },
+                    { id: 'ml', ru: 'мл', en: 'ml', factor: 1e-6, g: 7 },
+                    { id: 'dm3', ru: 'дм³', en: 'dm³', factor: 0.001, g: 7 },
+                    { id: 'l', ru: 'л', en: 'l', factor: 0.001, g: 7 },
+                    { id: 'm3', ru: 'м³', en: 'm³', factor: 1, g: 7 },
+                    { id: 'km3', ru: 'км³', en: 'km³', factor: 1e9, g: 7 }
+                ]
+            },
+            {
+                id: 'mass', ru: 'Масса', en: 'Mass', kk: 'Масса', defaultFrom: 'kg', defaultTo: 'g',
+                units: [
+                    { id: 'mg', ru: 'мг', en: 'mg', factor: 1e-6, g: 7 },
+                    { id: 'g', ru: 'г', en: 'g', factor: 0.001, g: 7 },
+                    { id: 'kg', ru: 'кг', en: 'kg', factor: 1, g: 7 },
+                    { id: 'c', ru: 'ц', en: 'centner', factor: 100, g: 7 },
+                    { id: 't', ru: 'т', en: 't', factor: 1000, g: 7 },
+                    { id: 'amu', ru: 'а.е.м.', en: 'u', factor: 1.6605390666e-27, g: 10 }
+                ]
+            },
+            {
+                id: 'speed', ru: 'Скорость', en: 'Speed', kk: 'Жылдамдық', defaultFrom: 'kmh', defaultTo: 'ms',
+                units: [
+                    { id: 'mms', ru: 'мм/с', en: 'mm/s', factor: 0.001, g: 7 },
+                    { id: 'cms', ru: 'см/с', en: 'cm/s', factor: 0.01, g: 7 },
+                    { id: 'mmin', ru: 'м/мин', en: 'm/min', factor: 1 / 60, g: 7 },
+                    { id: 'ms', ru: 'м/с', en: 'm/s', factor: 1, g: 7 },
+                    { id: 'kmh', ru: 'км/ч', en: 'km/h', factor: 1000 / 3600, g: 7 },
+                    { id: 'kms', ru: 'км/с', en: 'km/s', factor: 1000, g: 7 },
+                    { id: 'knot', ru: 'узел', en: 'knot', factor: 1852 / 3600, g: 11 }
+                ]
+            },
+            {
+                id: 'accel', ru: 'Ускорение', en: 'Acceleration', kk: 'Үдеу', defaultFrom: 'ms2', defaultTo: 'cms2',
+                units: [
+                    { id: 'cms2', ru: 'см/с²', en: 'cm/s²', factor: 0.01, g: 7 },
+                    { id: 'ms2', ru: 'м/с²', en: 'm/s²', factor: 1, g: 7 },
+                    { id: 'kms2', ru: 'км/с²', en: 'km/s²', factor: 1000, g: 7 }
+                ]
+            },
+            {
+                id: 'density', ru: 'Плотность', en: 'Density', kk: 'Тығыздық', defaultFrom: 'gcm3', defaultTo: 'kgm3',
+                units: [
+                    { id: 'gl', ru: 'г/л', en: 'g/l', factor: 1, g: 7 },
+                    { id: 'kgm3', ru: 'кг/м³', en: 'kg/m³', factor: 1, g: 7 },
+                    { id: 'gcm3', ru: 'г/см³', en: 'g/cm³', factor: 1000, g: 7 },
+                    { id: 'kgl', ru: 'кг/л', en: 'kg/l', factor: 1000, g: 7 },
+                    { id: 'tm3', ru: 'т/м³', en: 't/m³', factor: 1000, g: 7 }
+                ]
+            },
+            {
+                id: 'force', ru: 'Сила', en: 'Force', kk: 'Күш', defaultFrom: 'kn', defaultTo: 'n',
+                units: [
+                    { id: 'mn', ru: 'мН', en: 'mN', factor: 0.001, g: 7 },
+                    { id: 'n', ru: 'Н', en: 'N', factor: 1, g: 7 },
+                    { id: 'kn', ru: 'кН', en: 'kN', factor: 1000, g: 7 },
+                    { id: 'kgf', ru: 'кгс', en: 'kgf', factor: 9.80665, g: 7 }
+                ]
+            },
+            {
+                id: 'pressure', ru: 'Давление', en: 'Pressure', kk: 'Қысым', defaultFrom: 'kpa', defaultTo: 'pa',
+                units: [
+                    { id: 'pa', ru: 'Па', en: 'Pa', factor: 1, g: 7 },
+                    { id: 'hpa', ru: 'гПа', en: 'hPa', factor: 100, g: 7 },
+                    { id: 'kpa', ru: 'кПа', en: 'kPa', factor: 1000, g: 7 },
+                    { id: 'mpa', ru: 'МПа', en: 'MPa', factor: 1e6, g: 7 },
+                    { id: 'bar', ru: 'бар', en: 'bar', factor: 100000, g: 7 },
+                    { id: 'atm', ru: 'атм', en: 'atm', factor: 101325, g: 7 },
+                    { id: 'mmhg', ru: 'мм рт. ст.', en: 'mmHg', factor: 133.322387415, g: 7 }
+                ]
+            },
+            {
+                id: 'energy', ru: 'Работа и энергия', en: 'Work and energy', kk: 'Жұмыс және энергия', defaultFrom: 'kj', defaultTo: 'j',
+                units: [
+                    { id: 'j', ru: 'Дж', en: 'J', factor: 1, g: 7 },
+                    { id: 'kj', ru: 'кДж', en: 'kJ', factor: 1000, g: 7 },
+                    { id: 'mj', ru: 'МДж', en: 'MJ', factor: 1e6, g: 7 },
+                    { id: 'cal', ru: 'кал', en: 'cal', factor: 4.184, g: 7 },
+                    { id: 'kcal', ru: 'ккал', en: 'kcal', factor: 4184, g: 7 },
+                    { id: 'kwh', ru: 'кВт·ч', en: 'kW·h', factor: 3.6e6, g: 8 },
+                    { id: 'ev', ru: 'эВ', en: 'eV', factor: 1.602176634e-19, g: 11 },
+                    { id: 'kev', ru: 'кэВ', en: 'keV', factor: 1.602176634e-16, g: 11 },
+                    { id: 'mev', ru: 'МэВ', en: 'MeV', factor: 1.602176634e-13, g: 11 }
+                ]
+            },
+            {
+                id: 'power', ru: 'Мощность', en: 'Power', kk: 'Қуат', defaultFrom: 'kw', defaultTo: 'w',
+                units: [
+                    { id: 'mw', ru: 'мВт', en: 'mW', factor: 0.001, g: 7 },
+                    { id: 'w', ru: 'Вт', en: 'W', factor: 1, g: 7 },
+                    { id: 'kw', ru: 'кВт', en: 'kW', factor: 1000, g: 7 },
+                    { id: 'megw', ru: 'МВт', en: 'MW', factor: 1e6, g: 7 },
+                    { id: 'hp', ru: 'л.с.', en: 'hp', factor: 735.49875, g: 7 }
+                ]
+            },
+            {
+                id: 'temp', ru: 'Температура', en: 'Temperature', kk: 'Температура', special: 'temperature',
+                defaultFrom: 'c', defaultTo: 'k',
+                units: [
+                    { id: 'c', ru: '°C', en: '°C', g: 8 },
+                    { id: 'k', ru: 'К', en: 'K', g: 8 },
+                    { id: 'f', ru: '°F', en: '°F', g: 8 }
+                ]
+            },
+            {
+                id: 'current', ru: 'Сила тока', en: 'Current', kk: 'Ток күші', defaultFrom: 'a', defaultTo: 'ma',
+                units: [
+                    { id: 'ua', ru: 'мкА', en: 'µA', factor: 1e-6, g: 8 },
+                    { id: 'ma', ru: 'мА', en: 'mA', factor: 0.001, g: 8 },
+                    { id: 'a', ru: 'А', en: 'A', factor: 1, g: 8 },
+                    { id: 'ka', ru: 'кА', en: 'kA', factor: 1000, g: 8 }
+                ]
+            },
+            {
+                id: 'voltage', ru: 'Напряжение', en: 'Voltage', kk: 'Кернеу', defaultFrom: 'kv', defaultTo: 'v',
+                units: [
+                    { id: 'mv', ru: 'мВ', en: 'mV', factor: 0.001, g: 8 },
+                    { id: 'v', ru: 'В', en: 'V', factor: 1, g: 8 },
+                    { id: 'kv', ru: 'кВ', en: 'kV', factor: 1000, g: 8 }
+                ]
+            },
+            {
+                id: 'resistance', ru: 'Сопротивление', en: 'Resistance', kk: 'Кедергі', defaultFrom: 'kom', defaultTo: 'om',
+                units: [
+                    { id: 'om', ru: 'Ом', en: 'Ω', factor: 1, g: 8 },
+                    { id: 'kom', ru: 'кОм', en: 'kΩ', factor: 1000, g: 8 },
+                    { id: 'mom', ru: 'МОм', en: 'MΩ', factor: 1e6, g: 8 }
+                ]
+            },
+            {
+                id: 'charge', ru: 'Электрический заряд', en: 'Electric charge', kk: 'Электр заряды', defaultFrom: 'cl', defaultTo: 'mcl',
+                units: [
+                    { id: 'ncl', ru: 'нКл', en: 'nC', factor: 1e-9, g: 8 },
+                    { id: 'mcl', ru: 'мкКл', en: 'µC', factor: 1e-6, g: 8 },
+                    { id: 'cl', ru: 'Кл', en: 'C', factor: 1, g: 8 }
+                ]
+            },
+            {
+                id: 'frequency', ru: 'Частота', en: 'Frequency', kk: 'Жиілік', defaultFrom: 'khz', defaultTo: 'hz',
+                units: [
+                    { id: 'hz', ru: 'Гц', en: 'Hz', factor: 1, g: 9 },
+                    { id: 'khz', ru: 'кГц', en: 'kHz', factor: 1000, g: 9 },
+                    { id: 'mhz', ru: 'МГц', en: 'MHz', factor: 1e6, g: 9 },
+                    { id: 'ghz', ru: 'ГГц', en: 'GHz', factor: 1e9, g: 9 }
+                ]
+            },
+            {
+                id: 'angle', ru: 'Угол', en: 'Angle', kk: 'Бұрыш', defaultFrom: 'deg', defaultTo: 'rad',
+                units: [
+                    { id: 'rad', ru: 'рад', en: 'rad', factor: 1, g: 9 },
+                    { id: 'deg', ru: 'градус', en: 'degree', factor: Math.PI / 180, g: 9 },
+                    { id: 'amin', ru: 'угловая минута', en: 'arcminute', factor: Math.PI / 10800, g: 9 },
+                    { id: 'asec', ru: 'угловая секунда', en: 'arcsecond', factor: Math.PI / 648000, g: 9 }
+                ]
+            },
+            {
+                id: 'amount', ru: 'Количество вещества', en: 'Amount of substance', kk: 'Зат мөлшері', defaultFrom: 'mol', defaultTo: 'mmol',
+                units: [
+                    { id: 'mmol', ru: 'ммоль', en: 'mmol', factor: 0.001, g: 10 },
+                    { id: 'mol', ru: 'моль', en: 'mol', factor: 1, g: 10 },
+                    { id: 'kmol', ru: 'кмоль', en: 'kmol', factor: 1000, g: 10 }
+                ]
+            },
+            {
+                id: 'capacitance', ru: 'Электроёмкость', en: 'Capacitance', kk: 'Электр сыйымдылығы', defaultFrom: 'mf', defaultTo: 'f',
+                units: [
+                    { id: 'pf', ru: 'пФ', en: 'pF', factor: 1e-12, g: 10 },
+                    { id: 'nf', ru: 'нФ', en: 'nF', factor: 1e-9, g: 10 },
+                    { id: 'mf', ru: 'мкФ', en: 'µF', factor: 1e-6, g: 10 },
+                    { id: 'f', ru: 'Ф', en: 'F', factor: 1, g: 10 }
+                ]
+            },
+            {
+                id: 'induction', ru: 'Магнитная индукция', en: 'Magnetic induction', kk: 'Магнит индукциясы', defaultFrom: 'tl', defaultTo: 'mtl',
+                units: [
+                    { id: 'mtl', ru: 'мТл', en: 'mT', factor: 0.001, g: 11 },
+                    { id: 'tl', ru: 'Тл', en: 'T', factor: 1, g: 11 },
+                    { id: 'ktl', ru: 'кТл', en: 'kT', factor: 1000, g: 11 }
+                ]
+            },
+            {
+                id: 'flux', ru: 'Магнитный поток', en: 'Magnetic flux', kk: 'Магнит ағыны', defaultFrom: 'wb', defaultTo: 'mwb',
+                units: [
+                    { id: 'mwb', ru: 'мВб', en: 'mWb', factor: 0.001, g: 11 },
+                    { id: 'wb', ru: 'Вб', en: 'Wb', factor: 1, g: 11 }
+                ]
+            },
+            {
+                id: 'inductance', ru: 'Индуктивность', en: 'Inductance', kk: 'Индуктивтілік', defaultFrom: 'h', defaultTo: 'mh',
+                units: [
+                    { id: 'mh', ru: 'мГн', en: 'mH', factor: 0.001, g: 11 },
+                    { id: 'h', ru: 'Гн', en: 'H', factor: 1, g: 11 }
+                ]
+            }
+        ];
+
+        let unitGrade = 0;              // 0 — все классы, иначе 7–11
+        let unitCategoryId = 'time';    // по умолчанию минуты → секунды
+
+        function unitCategoryLabel(cat) { return pick(cat.ru, cat.en, cat.kk); }
+        function unitLabel(unit) {
+            if (currentLang === 'en') return unit.en || unit.ru;
+            if (currentLang === 'ru') return unit.ru;
+            return T(unit.ru) || unit.ru;
+        }
+
+        function visibleUnitCategories() {
+            return unitCategories
+                .map(cat => ({ cat: cat, units: cat.units.filter(u => unitGrade === 0 || u.g <= unitGrade) }))
+                .filter(item => item.units.length >= 2);
+        }
+
+        function currentUnitCategory() {
+            return unitCategories.find(c => c.id === unitCategoryId) || unitCategories[0];
+        }
+
+        function currentUnitUnits() {
+            const cat = currentUnitCategory();
+            return cat.units.filter(u => unitGrade === 0 || u.g <= unitGrade);
+        }
+
+        function renderUnitGradeButtons() {
+            const box = document.getElementById('unit-grade-buttons');
+            if (!box) return;
+            const grades = [
+                { value: 0, label: pick('Все', 'All', 'Барлығы') },
+                { value: 7, label: '7' },
+                { value: 8, label: '8' },
+                { value: 9, label: '9' },
+                { value: 10, label: '10' },
+                { value: 11, label: '11' }
+            ];
+            box.innerHTML = grades.map(g => {
+                const active = unitGrade === g.value;
+                return `<button type="button" onclick="setUnitGrade(${g.value})"
+                    class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${active
+                        ? 'bg-accent text-white border-accent shadow-md'
+                        : 'bg-dark-900 text-gray-400 border-dark-600 hover:text-white hover:border-accent/60'}">${g.label}</button>`;
+            }).join('');
+        }
+
+        function renderUnitCategorySelect() {
+            const sel = document.getElementById('unit-category');
+            if (!sel) return;
+            const cats = visibleUnitCategories();
+            if (!cats.some(item => item.cat.id === unitCategoryId)) {
+                const fallback = cats.find(item => item.cat.id === 'time') || cats[0];
+                unitCategoryId = fallback ? fallback.cat.id : unitCategories[0].id;
+            }
+            sel.innerHTML = cats.map(item =>
+                `<option value="${item.cat.id}">${unitCategoryLabel(item.cat)}</option>`
+            ).join('');
+            sel.value = unitCategoryId;
+        }
+
+        function fillUnitSelect(sel, units) {
+            sel.innerHTML = units.map(u => `<option value="${u.id}">${unitLabel(u)}</option>`).join('');
+        }
+
+        function renderUnitSelects(useDefaults) {
+            const fromSel = document.getElementById('unit-from');
+            const toSel = document.getElementById('unit-to');
+            if (!fromSel || !toSel) return;
+            const cat = currentUnitCategory();
+            const units = currentUnitUnits();
+            if (!units.length) return;
+
+            const oldFrom = fromSel.value;
+            const oldTo = toSel.value;
+            fillUnitSelect(fromSel, units);
+            fillUnitSelect(toSel, units);
+
+            let fromId = !useDefaults && units.some(u => u.id === oldFrom) ? oldFrom : cat.defaultFrom;
+            let toId = !useDefaults && units.some(u => u.id === oldTo) ? oldTo : cat.defaultTo;
+            if (!units.some(u => u.id === fromId)) fromId = units[0].id;
+            if (!units.some(u => u.id === toId) || toId === fromId) {
+                const other = units.find(u => u.id !== fromId);
+                toId = other ? other.id : fromId;
+            }
+            fromSel.value = fromId;
+            toSel.value = toId;
+        }
+
+        window.setUnitGrade = function(grade) {
+            const prevCategory = unitCategoryId;
+            unitGrade = Number(grade) || 0;
+            renderUnitGradeButtons();
+            renderUnitCategorySelect();
+            renderUnitSelects(prevCategory !== unitCategoryId);
+            convertUnits();
+        };
+
+        window.onUnitCategoryChange = function() {
+            const sel = document.getElementById('unit-category');
+            if (sel) unitCategoryId = sel.value;
+            renderUnitSelects(true);
+            convertUnits();
+        };
+
+        window.swapUnits = function() {
+            const fromSel = document.getElementById('unit-from');
+            const toSel = document.getElementById('unit-to');
+            if (!fromSel || !toSel) return;
+            const tmp = fromSel.value;
+            fromSel.value = toSel.value;
+            toSel.value = tmp;
+            convertUnits();
+        };
+
+        function parseUnitInput(raw) {
+            let s = String(raw == null ? '' : raw).trim().replace(/\s+/g, '').replace(/−/g, '-');
+            if (!s) return NaN;
+            s = s.replace(',', '.');
+            const n = Number(s);
+            return Number.isFinite(n) ? n : NaN;
+        }
+
+        function formatUnitNumber(x) {
+            if (!Number.isFinite(x)) return '—';
+            if (x === 0) return '0';
+            const ax = Math.abs(x);
+            let s;
+            if (ax >= 1e9 || ax < 1e-4) {
+                s = x.toExponential(4);
+            } else {
+                s = String(parseFloat(x.toPrecision(7)));
+            }
+            return s.replace('.', ',');
+        }
+
+        function temperatureToCelsius(value, unitId) {
+            if (unitId === 'k') return value - 273.15;
+            if (unitId === 'f') return (value - 32) * 5 / 9;
+            return value;
+        }
+
+        function temperatureFromCelsius(value, unitId) {
+            if (unitId === 'k') return value + 273.15;
+            if (unitId === 'f') return value * 9 / 5 + 32;
+            return value;
+        }
+
+        function convertUnitValue(value, fromUnit, toUnit, cat) {
+            if (cat && cat.special === 'temperature') {
+                return temperatureFromCelsius(temperatureToCelsius(value, fromUnit.id), toUnit.id);
+            }
+            return value * fromUnit.factor / toUnit.factor;
+        }
+
+        window.convertUnits = function() {
+            const mainEl = document.getElementById('unit-result-main');
+            const subEl = document.getElementById('unit-result-sub');
+            if (!mainEl || !subEl) return;
+            const cat = currentUnitCategory();
+            const units = currentUnitUnits();
+            const fromSel = document.getElementById('unit-from');
+            const toSel = document.getElementById('unit-to');
+            const valueEl = document.getElementById('unit-value');
+            const fromUnit = units.find(u => u.id === (fromSel ? fromSel.value : ''));
+            const toUnit = units.find(u => u.id === (toSel ? toSel.value : ''));
+            if (!fromUnit || !toUnit) return;
+
+            const value = parseUnitInput(valueEl ? valueEl.value : '');
+            if (!Number.isFinite(value)) {
+                mainEl.innerText = pick('Введите число, например 5', 'Enter a number, e.g. 5');
+                subEl.innerText = pick('Можно использовать запятую: 1,5', 'You can use a comma: 1.5');
+                return;
+            }
+
+            const result = convertUnitValue(value, fromUnit, toUnit, cat);
+            mainEl.innerText = `${formatUnitNumber(value)} ${unitLabel(fromUnit)} = ${formatUnitNumber(result)} ${unitLabel(toUnit)}`;
+
+            const reverse = convertUnitValue(1, toUnit, fromUnit, cat);
+            subEl.innerText = `1 ${unitLabel(toUnit)} = ${formatUnitNumber(reverse)} ${unitLabel(fromUnit)}`;
+        };
+
+        window.refreshUnitConverter = function() {
+            if (!document.getElementById('unit-category')) return;
+            renderUnitGradeButtons();
+            renderUnitCategorySelect();
+            renderUnitSelects(false);
+            convertUnits();
+        };
+
+        function initUnitConverter() {
+            if (!document.getElementById('unit-category')) return;
+            unitGrade = 0;
+            unitCategoryId = 'time';
+            renderUnitGradeButtons();
+            renderUnitCategorySelect();
+            renderUnitSelects(true);
+            convertUnits();
         }
 
         // ===== КВИЗЫ: вопрос и 4 варианта ответа, порядок и варианты случайные =====
